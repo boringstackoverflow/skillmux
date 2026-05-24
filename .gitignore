@@ -1,0 +1,22 @@
+# Build outputs
+/skillmux
+/bin/
+/dist/
+
+# Go
+*.test
+*.out
+coverage.txt
+coverage.out
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local agent/tooling config
+.codex/
+
+# Local Skillmux sandboxes
+.skillmux/
