@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Skillmux documentation — common workflows, profile management, per-project pins, and recovery.">
+  <title>Skillmux — Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ─── Docs-specific layout ─── */
+
+    .docs-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 64px;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    @media (max-width: 680px) {
+      .docs-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .docs-sidebar {
+        position: static;
+        border-bottom: 1px solid var(--border);
+        padding: 24px 0;
+        margin-bottom: 48px;
+      }
+    }
+
+    /* ─── Sidebar ─── */
+
+    .docs-sidebar {
+      position: sticky;
+      top: 40px;
+      align-self: start;
+      padding-top: 56px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 32px;
+    }
+
+    .sidebar-heading {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .sidebar-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-links a {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+      display: block;
+      padding: 2px 0;
+    }
+
+    .sidebar-links a:hover { color: var(--text); }
+    .sidebar-links a.active { color: var(--accent); }
+
+    /* ─── Docs content ─── */
+
+    .docs-content {
+      padding: 56px 0 96px;
+      max-width: 620px;
+    }
+
+    .docs-content h1 {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-optical-sizing: auto;
+      margin-bottom: 12px;
+    }
+
+    .docs-content .lead {
+      font-size: 1rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 56px;
+      max-width: 520px;
+    }
+
+    .docs-section {
+      margin-bottom: 64px;
+    }
+
+    .docs-section h2 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      font-optical-sizing: auto;
+      margin-bottom: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .docs-section h3 {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 32px;
+      margin-bottom: 10px;
+    }
+
+    .docs-section p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .docs-section p strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .docs-section ul,
+    .docs-section ol {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+
+    .docs-section li {
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 4px;
+    }
+
+    .docs-section li strong { color: var(--text); font-weight: 500; }
+
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 18px 22px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.8;
+      color: var(--muted);
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    .code-block .c  { color: var(--muted-2); }
+    .code-block .v  { color: var(--accent); }
+    .code-block .k  { color: var(--text); }
+    .code-block .s  { color: #A8C4A2; }
+    .code-block .kw { color: #8BAFC4; }
+
+    /* inline code */
+    .docs-section code {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text);
+      background: var(--surface);
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+
+    .callout {
+      border-left: 2px solid var(--border);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+    }
+
+    .callout p {
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+
+    .callout.tip { border-color: var(--accent-dim); }
+    .callout.tip p { color: var(--muted); }
+    .callout.tip strong { color: var(--accent); }
+
+    /* ─── Header override for wider layout ─── */
+    .docs-header-wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Header ─── -->
+  <div class="docs-header-wrap">
+    <header class="site-header">
+      <a href="/" class="wordmark">skillmux</a>
+      <nav aria-label="Site navigation">
+        <ul class="site-nav">
+          <li><a href="docs.html" style="color: var(--accent);">docs</a></li>
+          <li><a href="https://github.com/boringstackoverflow/skillmux">github</a></li>
+          <li>
+            <a href="https://github.com/boringstackoverflow/skillmux" class="stars" id="gh-link" aria-label="Star on GitHub">
+              <span class="star-glyph" aria-hidden="true">★</span>
+              <span id="star-count"></span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+  </div>
+
+  <!-- ─── Docs layout ─── -->
+  <div class="docs-layout">
+
+    <!-- Sidebar -->
+    <aside class="docs-sidebar" aria-label="Documentation navigation">
+
+      <div class="sidebar-section">
+        <p class="sidebar-heading">Getting started</p>
+        <ul class="sidebar-links">
+          <li><a href="#first-time-setup">First-time setup</a></li>
+          <li><a href="#create-profiles">Create profiles</a></li>
+          <li><a href="#switch-profiles">Switch profiles</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <p class="sidebar-heading">Use cases</p>
+        <ul class="sidebar-links">
+          <li><a href="#work-vs-personal">Work vs personal</a></li>
+          <li><a href="#per-project-pins">Per-project pins</a></li>
+          <li><a href="#agent-specific">Agent-specific switching</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <p class="sidebar-heading">Reference</p>
+        <ul class="sidebar-links">
+          <li><a href="#inspect">Inspect &amp; scan</a></li>
+          <li><a href="#recovery">Backup &amp; recovery</a></li>
+          <li><a href="#completions">Shell completions</a></li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <!-- Main content -->
+    <main class="docs-content">
+
+      <h1>Documentation</h1>
+      <p class="lead">
+        Common workflows, use cases, and reference for Skillmux — a profile manager
+        for coding-agent skill folders.
+      </p>
+
+      <!-- ─── First-time setup ─── -->
+      <section class="docs-section" id="first-time-setup">
+        <h2>First-time setup</h2>
+        <p>
+          Run <code>init</code> once per machine. It discovers your agent skill folders,
+          backs them up, and relinks them through the active profile. Use <code>--dry-run</code>
+          to preview what will change before committing.
+        </p>
+
+        <h3>Preview first</h3>
+        <div class="code-block"><pre>
+<span class="v">$ skillmux init --profile work --dry-run</span></pre>
+        </div>
+
+        <h3>Apply</h3>
+        <div class="code-block"><pre>
+<span class="v">$ skillmux init --profile work --yes</span></pre>
+        </div>
+
+        <p>
+          After <code>init</code>, <strong>~/.claude/skills, ~/.codex/skills, and ~/.agents/skills</strong>
+          point to the <code>work</code> profile. Skills installed by any agent tool
+          land in that profile instead of a global folder.
+        </p>
+
+        <div class="callout tip">
+          <p><strong>Tip:</strong> Skillmux writes a backup manifest before touching anything.
+          If init produces an unexpected result, run <code>skillmux restore &lt;backup-id&gt; --yes</code>
+          to get back to exactly where you started.</p>
+        </div>
+      </section>
+
+      <!-- ─── Create profiles ─── -->
+      <section class="docs-section" id="create-profiles">
+        <h2>Create profiles</h2>
+        <p>
+          A profile is a named set of skills. Create one for each context you work in —
+          <code>work</code>, <code>frontend</code>, <code>research</code>, <code>writing</code>.
+          Profiles are stored under <code>~/.skillmux/profiles/</code>.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># create a new empty profile</span>
+<span class="v">$ skillmux profile create research</span>
+
+<span class="c"># list all profiles</span>
+<span class="v">$ skillmux profile list</span>
+
+<span class="c"># inspect what's in a profile</span>
+<span class="v">$ skillmux profile show research</span></pre>
+        </div>
+
+        <p>
+          You can also create a profile and switch to it in one command with the
+          <code>--create</code> flag on <code>use</code>:
+        </p>
+
+        <div class="code-block"><pre>
+<span class="v">$ skillmux use research --create</span></pre>
+        </div>
+      </section>
+
+      <!-- ─── Switch profiles ─── -->
+      <section class="docs-section" id="switch-profiles">
+        <h2>Switch profiles</h2>
+        <p>
+          <code>use</code> relinks all agent skill folders to a different profile in a
+          single command. All agents — Claude, Codex, and <code>.agents</code> — update at once.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># switch all agents to the research profile</span>
+<span class="v">$ skillmux use research</span>
+
+<span class="c"># confirm what's active</span>
+<span class="v">$ skillmux current</span>
+<span class="k">research</span></pre>
+        </div>
+      </section>
+
+      <!-- ─── Work vs personal ─── -->
+      <section class="docs-section" id="work-vs-personal">
+        <h2>Work vs personal</h2>
+        <p>
+          The most common setup: one profile for work projects, another for personal ones.
+          Skills that contain proprietary context, internal tooling, or sensitive commands
+          stay isolated in the <code>work</code> profile and never bleed into personal sessions.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># morning — start work</span>
+<span class="v">$ skillmux use work</span>
+
+<span class="c"># evening — switch to personal projects</span>
+<span class="v">$ skillmux use personal</span></pre>
+        </div>
+
+        <p>
+          Each profile maintains its own copy of skills under <code>~/.skillmux/profiles/</code>.
+          Installing a skill while <code>work</code> is active puts it in the <code>work</code> profile only.
+        </p>
+      </section>
+
+      <!-- ─── Per-project pins ─── -->
+      <section class="docs-section" id="per-project-pins">
+        <h2>Per-project profile pins</h2>
+        <p>
+          Add a <code>.skillmux.toml</code> to any project root to declare which profile it uses.
+          Run <code>skillmux enter</code> when you <code>cd</code> into the project and your agents
+          switch automatically.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># .skillmux.toml</span>
+<span class="k">profile</span> = <span class="s">"frontend"</span>
+<span class="k">agents</span>  = [<span class="s">"claude"</span>, <span class="s">"codex"</span>]</pre>
+        </div>
+
+        <div class="code-block"><pre>
+<span class="c"># activate the pinned profile for this project</span>
+<span class="v">$ skillmux enter</span>
+
+<span class="c"># create the profile if it doesn't exist yet</span>
+<span class="v">$ skillmux enter --create</span></pre>
+        </div>
+
+        <p>
+          <code>enter</code> reads the nearest <code>.skillmux.toml</code> and calls <code>use</code>
+          with the declared profile and agents. You can automate it from your shell's
+          <code>chpwd</code> hook or a <code>cd</code> wrapper to switch profiles whenever
+          you change directories.
+        </p>
+      </section>
+
+      <!-- ─── Agent-specific switching ─── -->
+      <section class="docs-section" id="agent-specific">
+        <h2>Agent-specific switching</h2>
+        <p>
+          Switch a single agent to a different profile without affecting the others.
+          Useful when you want Claude on one profile while Codex stays on another.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># move only codex to the work profile</span>
+<span class="v">$ skillmux use work --agent codex</span>
+
+<span class="c"># check the current state per agent</span>
+<span class="v">$ skillmux current</span></pre>
+        </div>
+      </section>
+
+      <!-- ─── Inspect & scan ─── -->
+      <section class="docs-section" id="inspect">
+        <h2>Inspect &amp; scan</h2>
+        <p>
+          Use <code>scan</code> to list every skill in a profile. Use <code>doctor</code>
+          to verify that your managed folders are healthy and linked correctly.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># list skills in a profile</span>
+<span class="v">$ skillmux scan --profile work</span>
+
+<span class="c"># verify all links are intact</span>
+<span class="v">$ skillmux doctor</span>
+
+<span class="c"># show the active profile</span>
+<span class="v">$ skillmux current</span></pre>
+        </div>
+      </section>
+
+      <!-- ─── Backup & recovery ─── -->
+      <section class="docs-section" id="recovery">
+        <h2>Backup &amp; recovery</h2>
+        <p>
+          Skillmux writes a TOML backup manifest before every operation that touches
+          managed folders. You can take manual snapshots and restore any of them by ID.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># take a manual backup</span>
+<span class="v">$ skillmux backup</span>
+
+<span class="c"># list all backups</span>
+<span class="v">$ skillmux backup list</span>
+
+<span class="c"># restore a specific backup</span>
+<span class="v">$ skillmux restore &lt;backup-id&gt; --yes</span>
+
+<span class="c"># attempt automatic repair</span>
+<span class="v">$ skillmux repair --dry-run</span>
+<span class="v">$ skillmux repair</span>
+
+<span class="c"># fully remove skillmux and restore original folders</span>
+<span class="v">$ skillmux uninstall --yes</span></pre>
+        </div>
+
+        <p>
+          <code>uninstall</code> restores the most recent pre-init backup by default.
+          Pass <code>--backup-id</code> to target a specific snapshot. The
+          <code>~/.skillmux</code> directory is kept for audit after uninstall.
+        </p>
+      </section>
+
+      <!-- ─── Shell completions ─── -->
+      <section class="docs-section" id="completions">
+        <h2>Shell completions</h2>
+        <p>
+          Skillmux ships Cobra completions for subcommands, flags, profile names, agent
+          names, and backup IDs.
+        </p>
+
+        <h3>Load for the current session</h3>
+        <div class="code-block"><pre>
+<span class="v">$ source &lt;(skillmux completion zsh)</span>
+<span class="v">$ source &lt;(skillmux completion bash)</span>
+<span class="v">$ skillmux completion fish | source</span></pre>
+        </div>
+
+        <h3>Install permanently</h3>
+        <div class="code-block"><pre>
+<span class="c"># zsh (Homebrew)</span>
+<span class="v">$ skillmux completion zsh &gt; "$(brew --prefix)/share/zsh/site-functions/_skillmux"</span>
+
+<span class="c"># bash (Homebrew)</span>
+<span class="v">$ skillmux completion bash &gt; "$(brew --prefix)/etc/bash_completion.d/skillmux"</span>
+
+<span class="c"># fish</span>
+<span class="v">$ skillmux completion fish &gt; ~/.config/fish/completions/skillmux.fish</span></pre>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Fetch live GitHub star count
+    (function() {
+      var el = document.getElementById('star-count');
+      if (!el) return;
+      fetch('https://api.github.com/repos/boringstackoverflow/skillmux', {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var n = d.stargazers_count;
+        if (typeof n === 'number') {
+          el.textContent = n >= 1000
+            ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+            : String(n);
+        }
+      })
+      .catch(function() {});
+    })();
+
+    // Highlight active sidebar link on scroll
+    (function() {
+      var sections = document.querySelectorAll('.docs-section[id]');
+      var links = document.querySelectorAll('.sidebar-links a');
+      if (!sections.length || !links.length) return;
+
+      function onScroll() {
+        var scrollY = window.scrollY + 120;
+        var current = '';
+        sections.forEach(function(s) {
+          if (s.offsetTop <= scrollY) current = s.id;
+        });
+        links.forEach(function(a) {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
+
+</body>
+</html>

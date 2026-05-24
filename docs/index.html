@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Skillmux is a profile manager for coding-agent skills. Keep your agent focused — expose only the skills that matter for the project you're in.">
+  <meta property="og:title" content="Skillmux">
+  <meta property="og:description" content="The right skills for the work at hand. A profile manager for coding-agent skills.">
+  <meta property="og:type" content="website">
+  <title>Skillmux — The right skills for the work at hand.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="wrap">
+
+    <!-- ─── Header ─── -->
+    <header class="site-header">
+      <a href="/" class="wordmark">skillmux</a>
+      <nav aria-label="Site navigation">
+        <ul class="site-nav">
+          <li><a href="docs.html">docs</a></li>
+          <li><a href="https://github.com/boringstackoverflow/skillmux">github</a></li>
+          <li>
+            <a href="https://github.com/boringstackoverflow/skillmux" class="stars" id="gh-link" aria-label="Star on GitHub">
+              <span class="star-glyph" aria-hidden="true">★</span>
+              <span id="star-count"></span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- ─── Hero ─── -->
+    <main>
+      <section class="hero" aria-label="Introduction">
+        <span class="eyebrow">v0.1.0 &middot; MIT &middot; Go</span>
+        <h1 class="headline">The right skills<br>for the work at hand.</h1>
+        <p class="subhead">
+          Skillmux manages which skills your coding agents can see.
+          Switch profiles between projects and your agent starts
+          <strong>focused, not buried</strong> in skills it doesn&rsquo;t need.
+        </p>
+
+        <div class="install" role="region" aria-label="Installation">
+          <span class="install-label">install</span>
+          <div class="install-primary">
+            <span class="install-cmd" id="curl-cmd">curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | sh</span>
+            <button class="copy-btn" onclick="copyText('curl-cmd', this)" aria-label="Copy curl install command">copy</button>
+          </div>
+          <div class="install-alts">
+            <div class="install-alt-row">
+              <span class="alt-method">brew</span>
+              <span>brew install boringstackoverflow/tap/skillmux</span>
+            </div>
+            <div class="install-alt-row">
+              <span class="alt-method">go</span>
+              <span>go install github.com/boringstackoverflow/skillmux/cmd/skillmux@latest</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Features ─── -->
+      <section class="features" aria-label="Features">
+        <span class="section-label">what it does</span>
+        <ul class="feature-list">
+
+          <li class="feature">
+            <h2 class="feature-title">Profile-scoped skills</h2>
+            <p class="feature-desc">
+              Install every skill once. Activate only the ones that matter for the project
+              you&rsquo;re in now. <strong>Claude, Codex, and <code>.agents</code> folders</strong>
+              all stay in sync — one command, all agents updated.
+            </p>
+          </li>
+
+          <li class="feature">
+            <h2 class="feature-title">Native folder compatibility</h2>
+            <p class="feature-desc">
+              Works with <strong><code>~/.claude/skills</code>, <code>~/.codex/skills</code>,
+              <code>~/.agents/skills</code></strong> — including existing shared symlink topologies.
+              Nothing breaks when you plug it in.
+            </p>
+          </li>
+
+          <li class="feature">
+            <h2 class="feature-title">Reversible by design</h2>
+            <p class="feature-desc">
+              Every managed operation writes a TOML backup manifest before touching anything.
+              <strong>Uninstall restores your original setup</strong>, recoverable by backup ID.
+              No silent mutations.
+            </p>
+          </li>
+
+        </ul>
+      </section>
+
+      <!-- ─── In practice ─── -->
+      <section class="proof" aria-label="In practice">
+        <span class="section-label">in practice</span>
+        <div class="snippet">
+          <pre aria-label="Main Skillmux workflow">
+<span class="c"># first-time setup — links your agent skill folders to the work profile</span>
+<span class="v">$ skillmux init --profile work --yes</span>
+
+<span class="c"># create a profile for a different context</span>
+<span class="v">$ skillmux profile create research</span>
+
+<span class="c"># switch — all agents update instantly</span>
+<span class="v">$ skillmux use research</span>
+
+<span class="c"># confirm what's active</span>
+<span class="v">$ skillmux current</span>
+<span class="k">research</span></pre>
+        </div>
+        <p class="attribution">— init once, create profiles per context, switch in a single command</p>
+      </section>
+    </main>
+
+    <!-- ─── Footer ─── -->
+    <footer class="site-footer">
+      <span class="footer-copy">MIT License &middot; boringstackoverflow</span>
+      <ul class="footer-links">
+        <li><a href="https://github.com/boringstackoverflow/skillmux/blob/main/CHANGELOG.md">changelog</a></li>
+        <li><a href="https://github.com/boringstackoverflow/skillmux/tree/main/docs">docs</a></li>
+        <li><a href="https://github.com/boringstackoverflow/skillmux">github</a></li>
+      </ul>
+    </footer>
+
+  </div>
+
+  <script>
+    // Copy install command
+    function copyText(id, btn) {
+      const text = document.getElementById(id).textContent.trim();
+      navigator.clipboard.writeText(text).then(function() {
+        const orig = btn.textContent;
+        btn.textContent = 'copied';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = orig;
+          btn.classList.remove('copied');
+        }, 1800);
+      }).catch(function() {
+        // Fallback for non-HTTPS contexts (local file://)
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        btn.textContent = 'copied';
+        btn.classList.add('copied');
+        setTimeout(function() { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+      });
+    }
+
+    // Fetch live GitHub star count
+    (function() {
+      var el = document.getElementById('star-count');
+      if (!el) return;
+      fetch('https://api.github.com/repos/boringstackoverflow/skillmux', {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var n = d.stargazers_count;
+        if (typeof n === 'number') {
+          el.textContent = n >= 1000
+            ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+            : String(n);
+        }
+      })
+      .catch(function() {
+        // Silently fail — star count is cosmetic
+      });
+    })();
+  </script>
+
+</body>
+</html>
