@@ -16,7 +16,7 @@
   --font-body:    'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:    'Geist Mono', 'Menlo', 'Monaco', monospace;
 
-  --max-w: 680px;
+  --max-w: 960px;
 }
 
 *, *::before, *::after {
