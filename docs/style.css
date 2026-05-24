@@ -38,12 +38,14 @@ body {
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ─── Layout ─── */
 
 .wrap {
-  max-width: var(--max-w);
+  width: min(100%, var(--max-w));
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -54,6 +56,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
   padding: 24px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -72,6 +75,8 @@ body {
   display: flex;
   gap: 24px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   list-style: none;
 }
 
@@ -155,13 +160,18 @@ body {
 
 .install-primary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   flex-wrap: wrap;
+  min-width: 0;
   margin-bottom: 4px;
 }
 
 .install-cmd {
+  display: block;
+  flex: 1 1 560px;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-mono);
   font-size: 1.15rem;
   font-weight: 400;
@@ -170,6 +180,8 @@ body {
   /* selectable text — no box, no chrome */
   cursor: text;
   user-select: all;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .copy-btn {
@@ -201,9 +213,16 @@ body {
   display: flex;
   align-items: baseline;
   gap: 14px;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.install-alt-row span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .alt-method {
@@ -277,6 +296,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 24px 28px;
+  max-width: 100%;
   margin-bottom: 14px;
   overflow-x: auto;
 }
@@ -321,6 +341,7 @@ body {
 
 .footer-links {
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
   list-style: none;
 }
@@ -336,9 +357,79 @@ body {
 
 /* ─── Responsive ─── */
 
+@media (max-width: 640px) {
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-nav {
+    justify-content: flex-start;
+    gap: 16px;
+    width: 100%;
+  }
+}
+
 @media (max-width: 480px) {
-  .hero { padding: 64px 0 56px; }
-  .install-cmd { font-size: 0.9rem; word-break: break-all; }
-  .features, .proof { padding: 56px 0; }
-  .site-footer { flex-direction: column; align-items: flex-start; }
+  .wrap {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .site-header {
+    gap: 12px;
+    padding: 20px 0;
+  }
+
+  .site-nav {
+    gap: 12px;
+  }
+
+  .hero {
+    padding: 64px 0 56px;
+  }
+
+  .headline {
+    font-size: 2.35rem;
+    overflow-wrap: anywhere;
+  }
+
+  .subhead {
+    font-size: 0.98rem;
+  }
+
+  .install-cmd {
+    flex-basis: 100%;
+    font-size: 0.88rem;
+    line-height: 1.65;
+  }
+
+  .copy-btn {
+    margin-left: auto;
+  }
+
+  .install-alt-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .features,
+  .proof {
+    padding: 56px 0;
+  }
+
+  .snippet {
+    padding: 16px 18px;
+  }
+
+  .snippet pre {
+    font-size: 0.78rem;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
