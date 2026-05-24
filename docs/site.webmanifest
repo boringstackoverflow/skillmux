@@ -1,0 +1,16 @@
+{
+  "name": "Skillmux",
+  "short_name": "Skillmux",
+  "description": "A CLI profile manager for Claude, Codex, and coding-agent skills.",
+  "start_url": "/skillmux/",
+  "display": "standalone",
+  "background_color": "#141210",
+  "theme_color": "#141210",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ coverage.out
 
 # Local agent/tooling config
 .codex/
+CLAUDE.md
 
 # Local Skillmux sandboxes
 .skillmux/

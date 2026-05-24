@@ -3,14 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Skillmux is a profile manager for coding-agent skills. Keep your agent focused — expose only the skills that matter for the project you're in.">
-  <meta property="og:title" content="Skillmux">
-  <meta property="og:description" content="The right skills for the work at hand. A profile manager for coding-agent skills.">
+  <meta name="description" content="Skillmux is a CLI profile manager for Claude, Codex, and coding-agent skills. Switch skill profiles per project while preserving native agent folders.">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#141210">
+  <link rel="canonical" href="https://boringstackoverflow.github.io/skillmux/">
+  <meta property="og:site_name" content="Skillmux">
+  <meta property="og:title" content="Skillmux — Claude, Codex, and coding-agent skill profiles">
+  <meta property="og:description" content="A CLI profile manager for Claude, Codex, and coding-agent skills. Keep agents focused by exposing only the skills needed for each project.">
   <meta property="og:type" content="website">
-  <title>Skillmux — The right skills for the work at hand.</title>
+  <meta property="og:url" content="https://boringstackoverflow.github.io/skillmux/">
+  <meta property="og:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Skillmux profile manager for coding-agent skills">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Skillmux — Claude, Codex, and coding-agent skill profiles">
+  <meta name="twitter:description" content="Switch skill profiles per project for Claude, Codex, and direct .agent skill folders.">
+  <meta name="twitter:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
+  <title>Skillmux — Claude, Codex, and coding-agent skill profiles</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Skillmux",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux",
+    "description": "A CLI profile manager for Claude, Codex, and coding-agent skills.",
+    "url": "https://boringstackoverflow.github.io/skillmux/",
+    "codeRepository": "https://github.com/boringstackoverflow/skillmux",
+    "license": "https://github.com/boringstackoverflow/skillmux/blob/main/LICENSE",
+    "programmingLanguage": "Go",
+    "softwareVersion": "0.1.0",
+    "author": {
+      "@type": "Person",
+      "name": "boringstackoverflow",
+      "url": "https://github.com/boringstackoverflow"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 </head>
 <body>
 
@@ -37,10 +79,10 @@
     <main>
       <section class="hero" aria-label="Introduction">
         <span class="eyebrow">v0.1.0 &middot; MIT &middot; Go</span>
-        <h1 class="headline">The right skills<br>for the work at hand.</h1>
+        <h1 class="headline">Skill profiles<br>for coding agents.</h1>
         <p class="subhead">
-          Skillmux manages which skills your coding agents can see.
-          Switch profiles between projects and your agent starts
+          Skillmux manages which Claude, Codex, and <code>.agent</code> skills your
+          coding agents can see. Switch profiles between projects and your agent starts
           <strong>focused, not buried</strong> in skills it doesn&rsquo;t need.
         </p>
 

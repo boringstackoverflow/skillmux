@@ -1,5 +1,7 @@
 # Skillmux
 
+A CLI profile manager for Claude, Codex, and `.agent`/`.agents` skill folders.
+
 Skillmux is a profile manager for coding-agent skills. It keeps agent-visible skills small by exposing only the active profile through the native folders that existing agents and marketplace installers already use.
 
 It is designed for developers who use many skills across different workflows and want clean separation between what is installed and what an agent can discover at startup.
