@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Skill accumulation is the quiet tax on every AI coding agent session. Here's what I tried, what broke, and the small Go CLI I ended up building.">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#141210">
+  <link rel="canonical" href="https://boringstackoverflow.github.io/skillmux/blog/managing-claude-skills.html">
+  <meta property="og:site_name" content="Skillmux">
+  <meta property="og:title" content="How I manage 40+ skills across Claude Code, Codex, and .agents folders">
+  <meta property="og:description" content="Skill accumulation is the quiet tax on every AI coding agent session. Here's what I tried, what broke, and the small Go CLI I ended up building.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://boringstackoverflow.github.io/skillmux/blog/managing-claude-skills.html">
+  <meta property="og:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="article:published_time" content="2026-05-25T00:00:00Z">
+  <meta property="article:author" content="boringstackoverflow">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How I manage 40+ skills across Claude Code, Codex, and .agents folders">
+  <meta name="twitter:description" content="Skill accumulation is the quiet tax on every AI coding agent session.">
+  <meta name="twitter:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
+  <title>How I manage 40+ skills across Claude Code, Codex, and .agents folders — Skillmux Blog</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="../style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "How I manage 40+ skills across Claude Code, Codex, and .agents folders",
+    "description": "Skill accumulation is the quiet tax on every AI coding agent session. Here's what I tried, what broke, and the small Go CLI I ended up building.",
+    "url": "https://boringstackoverflow.github.io/skillmux/blog/managing-claude-skills.html",
+    "datePublished": "2026-05-25",
+    "dateModified": "2026-05-25",
+    "image": "https://boringstackoverflow.github.io/skillmux/social-card.png",
+    "author": {
+      "@type": "Person",
+      "name": "boringstackoverflow",
+      "url": "https://github.com/boringstackoverflow"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Skillmux",
+      "url": "https://boringstackoverflow.github.io/skillmux/"
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://boringstackoverflow.github.io/skillmux/blog/managing-claude-skills.html"
+    }
+  }
+  </script>
+  <style>
+    /* ─── Post-specific layout ─── */
+
+    .post-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .back-link {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-decoration: none;
+      margin: 40px 0 48px;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    .post-header {
+      margin-bottom: 56px;
+    }
+
+    .post-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 2.7rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-optical-sizing: auto;
+      margin-bottom: 24px;
+    }
+
+    .post-meta {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .post-meta .dot {
+      margin: 0 8px;
+      color: var(--muted-2);
+    }
+
+    .post-body {
+      font-size: 1.05rem;
+      line-height: 1.8;
+      color: var(--text);
+    }
+
+    .post-body p {
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    .post-body h2 {
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      font-optical-sizing: auto;
+      margin: 56px 0 20px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+
+    .post-body h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: var(--text);
+      font-optical-sizing: auto;
+      margin: 36px 0 14px;
+    }
+
+    .post-body ul,
+    .post-body ol {
+      margin: 0 0 24px;
+      padding-left: 22px;
+    }
+
+    .post-body li {
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .post-body li strong { color: var(--text); font-weight: 600; }
+
+    .post-body code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      color: var(--accent);
+      background: var(--surface);
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+
+    .post-body pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      margin: 0 0 24px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.75;
+      color: var(--muted);
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    .post-body pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .post-body strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .post-body em {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .post-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 56px 0 24px;
+    }
+
+    .post-body a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-color: var(--accent-dim);
+      transition: text-decoration-color 0.15s, color 0.15s;
+    }
+    .post-body a:hover {
+      text-decoration-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .post-body .footer-line {
+      font-size: 0.92rem;
+      font-style: italic;
+      color: var(--muted);
+      margin-top: 0;
+    }
+
+    /* code highlighting inside pre */
+    .post-body pre .c { color: var(--muted-2); }
+    .post-body pre .v { color: var(--accent); }
+    .post-body pre .k { color: var(--text); }
+    .post-body pre .s { color: #A8C4A2; }
+
+    /* post footer / share */
+    .post-end {
+      margin-top: 72px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+    .post-end .end-left {
+      color: var(--muted-2);
+    }
+    .post-end .end-right a {
+      color: var(--muted);
+      text-decoration: none;
+      margin-left: 16px;
+      transition: color 0.15s;
+    }
+    .post-end .end-right a:hover {
+      color: var(--accent);
+    }
+
+    @media (max-width: 540px) {
+      .post-body { font-size: 1rem; line-height: 1.75; }
+      .post-title { font-size: 1.9rem; }
+      .post-body h2 { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <header class="site-header">
+      <a href="https://boringstackoverflow.github.io/skillmux/" class="wordmark">skillmux</a>
+      <nav aria-label="Site navigation">
+        <ul class="site-nav">
+          <li><a href="../docs.html">docs</a></li>
+          <li><a href="index.html" style="color: var(--accent);">blog</a></li>
+          <li><a href="https://github.com/boringstackoverflow/skillmux">github</a></li>
+          <li>
+            <a href="https://github.com/boringstackoverflow/skillmux" class="stars" id="gh-link" aria-label="Star on GitHub">
+              <span class="star-glyph" aria-hidden="true">★</span>
+              <span id="star-count"></span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+  </div>
+
+  <main class="post-wrap">
+
+    <a class="back-link" href="index.html">← all posts</a>
+
+    <article>
+
+      <header class="post-header">
+        <h1 class="post-title">How I manage 40+ skills across Claude Code, Codex, and .agents folders</h1>
+        <p class="post-meta">
+          <time datetime="2026-05-25">2026-05-25</time>
+          <span class="dot">·</span>
+          8 min read
+          <span class="dot">·</span>
+          <a href="https://github.com/boringstackoverflow" style="color: var(--muted); text-decoration: none;">boringstackoverflow</a>
+        </p>
+      </header>
+
+      <div class="post-body">
+
+        <p>I started with three skills. A year later I had forty-something. Every Claude Code session loaded all of them. Every Codex run loaded all of them. Every <code>.agents</code>-based tool I tried loaded all of them. The folders are global. The work isn't.</p>
+
+        <p>This post is about how skill accumulation became the quiet tax on every session, what I tried to fix it (most of which broke), and the small Go CLI I ended up writing because the right answer wasn't a script — it was a model.</p>
+
+        <h2>How forty-something skills happened</h2>
+
+        <p>I didn't sit down one day and install forty skills. They arrived in trickles:</p>
+
+        <ul>
+          <li>A handful of work skills for internal company tooling — deploy helpers, runbook scaffolders, an API auth wrapper</li>
+          <li>Personal project skills — a SQLite migration helper, a blog post drafter, a GitHub issue templater</li>
+          <li>Research skills — a PDF-to-notes flow, an arxiv summarizer, a citation cleaner</li>
+          <li>Frontend skills — a Tailwind class organizer, a React component scaffolder, a small accessibility linter</li>
+          <li>Backend skills — a Postgres index analyzer, an OpenAPI spec generator</li>
+          <li>And a long tail of experimental skills I built once, used twice, and never deleted</li>
+        </ul>
+
+        <p>By the time I noticed the problem, the count was somewhere north of forty. Some of them I genuinely used every day. Some of them I'd used once. All of them were visible to my agents at startup.</p>
+
+        <h2>The actual cost of skill bleed</h2>
+
+        <p>The cost of seeing every skill at every session isn't just startup latency, though that's real. It's the wrong skill suggested at the wrong moment.</p>
+
+        <p>A few specific friction moments that made me start caring:</p>
+
+        <ul>
+          <li>I asked Claude to help draft a personal email and it suggested using my company's email templating skill. The skill name made it sound applicable. It wasn't.</li>
+          <li>Codex pulled up internal database schema documentation while I was working on a personal SQLite project. Different schema, different domain, different everything — but the skill matched a keyword.</li>
+          <li>Half-finished experimental skills kept appearing in deterministic refactors. The agent would helpfully suggest a tool I'd written in twenty minutes and never tested.</li>
+          <li>One skill had a name collision with another from a different project. The agent picked whichever was discovered first.</li>
+        </ul>
+
+        <p>None of these are catastrophic. But they're a constant low-grade friction, and they get worse as you accumulate more skills. The honest version is: the agent is doing what you told it to do. You told it about all of these skills, so all of them are fair game.</p>
+
+        <p>The fix has to be: tell the agent about fewer skills.</p>
+
+        <h2>What I tried first</h2>
+
+        <h3>Just moving files around</h3>
+
+        <p>The naive first attempt: move skills out of <code>~/.claude/skills</code> when I didn't need them. Drag-and-drop, basically.</p>
+
+        <p>This broke immediately. Skill installers — and there are a lot of them now — write to the global path. So a week later <code>~/.claude/skills</code> had grown back to its original size, plus or minus whatever new things I'd installed. Manual moves don't survive contact with installers.</p>
+
+        <h3>Shell aliases pointing at different directories</h3>
+
+        <p>Next attempt: an alias for each context.</p>
+
+        <pre><code><span class="v">alias claude-work='CLAUDE_SKILLS_DIR=~/.claude/work-skills claude'</span>
+<span class="v">alias claude-personal='CLAUDE_SKILLS_DIR=~/.claude/personal-skills claude'</span></code></pre>
+
+        <p>The problem: not every agent respects an env var override for the skills path. Some do, some don't, some half-do. And even when they do, the third-party installers still write to the global location, so the directories drift apart immediately.</p>
+
+        <p>This is the kind of solution that works on Tuesday and breaks on Thursday.</p>
+
+        <h3>A bash script with symlinks</h3>
+
+        <p>Closer. I wrote a script that:</p>
+
+        <ol>
+          <li>Removed <code>~/.claude/skills</code></li>
+          <li>Created <code>~/.claude/skills</code> as a symlink to <code>~/.claude/profiles/&lt;name&gt;/skills</code></li>
+          <li>Did the same for <code>~/.codex/skills</code> and <code>~/.agents/skills</code></li>
+        </ol>
+
+        <p>It worked. For a while. Then it broke when I noticed my agents were already in a shared symlink topology — <code>~/.claude/skills -&gt; ~/.agents/skills</code> — because at some point in the past I'd set that up to dedupe the shared subset. My script saw two paths and treated them as two roots, when really they were one. Bash got confused. Symlinks got circular. I spent a Saturday morning unraveling it.</p>
+
+        <p>The breaking point wasn't the script. It was realizing that the problem isn't <em>which</em> operations to run on the filesystem. The problem is the absence of a model for what these folders mean.</p>
+
+        <h2>Profiles, not folders</h2>
+
+        <p>The model I landed on: a <strong>profile</strong> is a named set of skills for a purpose. <code>work</code>. <code>personal</code>. <code>research</code>. <code>frontend</code>. Whatever fits your contexts.</p>
+
+        <p>Each profile stores its own copy of skills under <code>~/.skillmux/profiles/&lt;name&gt;/</code>. Activating a profile relinks <code>~/.claude/skills</code>, <code>~/.codex/skills</code>, and <code>~/.agents/skills</code> to that profile's contents. All your agents update at once.</p>
+
+        <p>This beats tag-based approaches because there's no resolution ambiguity. A skill is in one profile or another (or both — copies are cheap). It beats per-project skill configs because profiles are reusable: my <code>frontend</code> profile is the same whether I'm in this React app or that one.</p>
+
+        <p>It also stops fighting installers. When a profile is active, installers write into the active profile's directory. The global path still exists, still works, still gets written to — but "global" now means "global within the current profile," which is what I wanted all along.</p>
+
+        <h2>Introducing Skillmux</h2>
+
+        <p>I called the CLI <a href="https://github.com/boringstackoverflow/skillmux">Skillmux</a>. It's written in Go, MIT licensed, ships as a single binary for macOS and Linux (arm64 + x86_64).</p>
+
+        <p>Install with curl:</p>
+
+        <pre><code><span class="v">curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | sh</span></code></pre>
+
+        <p>Or Homebrew:</p>
+
+        <pre><code><span class="v">brew install boringstackoverflow/tap/skillmux</span></code></pre>
+
+        <p>Or <code>go install</code> if you have a Go toolchain:</p>
+
+        <pre><code><span class="v">go install github.com/boringstackoverflow/skillmux/cmd/skillmux@latest</span></code></pre>
+
+        <h2>The four-command workflow</h2>
+
+        <p>Once installed, the entire daily workflow is four commands.</p>
+
+        <h3>First-time setup</h3>
+
+        <pre><code><span class="v">$ skillmux init --profile work --yes</span>
+discovered roots:
+  ~/.claude/skills
+  ~/.codex/skills
+  ~/.agents/skills (shared: ~/.claude/skills -&gt; ~/.agents/skills)
+backed up to ~/.skillmux/backups/20260524-194523-pre-init/
+linked roots to profile: work
+done.</code></pre>
+
+        <p><code>init</code> discovers your existing agent skill folders, resolves their symlink topology, writes a backup manifest, and relinks them through the active profile. The first profile gets seeded with whatever skills were already there, so nothing disappears on you.</p>
+
+        <h3>Create a profile for a different context</h3>
+
+        <pre><code><span class="v">$ skillmux profile create research</span>
+created profile: research (empty)</code></pre>
+
+        <p>Or do it in one shot:</p>
+
+        <pre><code><span class="v">$ skillmux use research --create</span></code></pre>
+
+        <h3>Switch to it</h3>
+
+        <pre><code><span class="v">$ skillmux use research</span>
+switched: work → research
+relinked: ~/.claude/skills, ~/.codex/skills, ~/.agents/skills</code></pre>
+
+        <p>All your agents now see only the <code>research</code> profile. Skills you've installed for <code>work</code> stay in the <code>work</code> profile, invisible until you switch back.</p>
+
+        <h3>Confirm what's active</h3>
+
+        <pre><code><span class="v">$ skillmux current</span>
+<span class="k">research</span></code></pre>
+
+        <p>That's the loop. <code>init</code> once per machine, <code>profile create</code> whenever you want a new context, <code>use</code> to switch, <code>current</code> when you forget where you are.</p>
+
+        <h2>Per-project pinning</h2>
+
+        <p>For repos I cd into often, I drop a <code>.skillmux.toml</code> at the root:</p>
+
+        <pre><code><span class="c"># .skillmux.toml</span>
+<span class="k">profile</span> = <span class="s">"frontend"</span>
+<span class="k">agents</span>  = [<span class="s">"claude"</span>, <span class="s">"codex"</span>]</code></pre>
+
+        <p>Then I run:</p>
+
+        <pre><code><span class="v">skillmux enter</span></code></pre>
+
+        <p>That's it. The project tells skillmux what profile to use. Wire it into your shell's <code>chpwd</code> hook or a <code>cd</code> wrapper if you want it to be automatic.</p>
+
+        <h2>What Skillmux doesn't do</h2>
+
+        <p>Honest scope notes, because tools that pretend to solve more than they do are how you waste a Saturday morning.</p>
+
+        <ul>
+          <li><strong>No Windows support yet.</strong> Symlink semantics on Windows are different enough that I don't want to ship something half-baked. If you need this, file an issue and tell me about your setup.</li>
+          <li><strong>No dependency resolution between skills.</strong> If skill A imports skill B, that's between you and the skill author. Skillmux just manages the folders.</li>
+          <li><strong>No registry or package management.</strong> Skillmux doesn't install skills. It assumes you have an existing install flow (manual, installer-driven, marketplace) and just makes profile activation work alongside it.</li>
+          <li><strong>No skill validation or sandboxing.</strong> If you install a skill that runs arbitrary code, that's still on you. Skillmux moves files; it doesn't read them.</li>
+          <li><strong>Doesn't manage runtime data.</strong> Sessions, logs, caches, auth files, shell histories — all out of scope. Skillmux only touches the skill folders and a small state directory at <code>~/.skillmux/</code>.</li>
+        </ul>
+
+        <p>Most of these are deliberate. The tool is small because the model is small. Profiles, native folders, reversible operations. That's it.</p>
+
+        <h2>Reversibility</h2>
+
+        <p>The thing I cared most about getting right: nothing destructive happens without a backup manifest.</p>
+
+        <p>Every operation that touches a managed folder writes a TOML manifest under <code>~/.skillmux/backups/&lt;timestamp&gt;-&lt;reason&gt;/</code>. You can list backups, restore from any of them by ID, and uninstall in a way that returns your folders to their exact original state.</p>
+
+        <pre><code><span class="v">$ skillmux backup list</span>
+20260524-194523-pre-init      init: profile work
+20260524-211002-pre-create    profile create: research
+20260524-211230-pre-use       use: research
+
+<span class="v">$ skillmux restore 20260524-194523-pre-init --yes</span>
+restored backup 20260524-194523-pre-init</code></pre>
+
+        <p><code>uninstall</code> does the same thing automatically and keeps <code>~/.skillmux/</code> for audit. The escape hatch is always available. I didn't want this tool to be one of those things where you adopt it and then can't get out.</p>
+
+        <h2>Try it</h2>
+
+        <p>If any of this resonates — if your agent has been suggesting the wrong skill at the wrong moment, or if your <code>~/.claude/skills</code> has quietly grown past the point you can keep in your head — give it a try.</p>
+
+        <pre><code><span class="v">curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | sh</span>
+<span class="v">skillmux init --profile work --yes</span></code></pre>
+
+        <p>
+          Repo: <a href="https://github.com/boringstackoverflow/skillmux">github.com/boringstackoverflow/skillmux</a><br>
+          Landing page: <a href="https://boringstackoverflow.github.io/skillmux/">boringstackoverflow.github.io/skillmux</a><br>
+          Docs: <a href="../docs.html">skillmux docs</a>
+        </p>
+
+        <p>Issues, PRs, and design feedback all welcome. I'm particularly interested in hearing from people with topologies more complex than mine, because that's where my assumptions are weakest.</p>
+
+        <hr>
+
+        <p class="footer-line"><em>Skillmux is MIT licensed, written in Go, and ships as a single binary for macOS and Linux (arm64 + x86_64). Built by <a href="https://github.com/boringstackoverflow">boringstackoverflow</a>.</em></p>
+
+      </div>
+
+      <div class="post-end">
+        <span class="end-left">2026-05-25</span>
+        <span class="end-right">
+          <a href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fboringstackoverflow.github.io%2Fskillmux%2Fblog%2Fmanaging-claude-skills.html&t=How%20I%20manage%2040%2B%20skills%20across%20Claude%20Code%2C%20Codex%2C%20and%20.agents%20folders" target="_blank" rel="noopener">share on HN</a>
+          <a href="https://twitter.com/intent/tweet?text=How%20I%20manage%2040%2B%20skills%20across%20Claude%20Code%2C%20Codex%2C%20and%20.agents%20folders%20%E2%80%94%20https%3A%2F%2Fboringstackoverflow.github.io%2Fskillmux%2Fblog%2Fmanaging-claude-skills.html" target="_blank" rel="noopener">share on X</a>
+        </span>
+      </div>
+
+    </article>
+
+  </main>
+
+  <div class="wrap">
+    <footer class="site-footer">
+      <span class="footer-copy">MIT License &middot; boringstackoverflow</span>
+      <ul class="footer-links">
+        <li><a href="../docs.html">docs</a></li>
+        <li><a href="index.html">blog</a></li>
+        <li><a href="https://github.com/boringstackoverflow/skillmux">github</a></li>
+      </ul>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      var el = document.getElementById('star-count');
+      if (!el) return;
+      fetch('https://api.github.com/repos/boringstackoverflow/skillmux', {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var n = d.stargazers_count;
+        if (typeof n === 'number') {
+          el.textContent = n >= 1000
+            ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+            : String(n);
+        }
+      })
+      .catch(function() {});
+    })();
+  </script>
+
+</body>
+</html>
