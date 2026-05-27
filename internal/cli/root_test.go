@@ -54,6 +54,7 @@ func TestCLIRootHelpIsGroupedAndActionable(t *testing.T) {
 		"Agent",
 		"Other Commands",
 		"skillmux init --profile work --dry-run",
+		"enable",
 		"completion",
 	} {
 		requireContains(t, stdout, want)
@@ -235,6 +236,31 @@ func TestCLIUseMissingProfileRequiresCreateFlag(t *testing.T) {
 	requireContains(t, stdout, "Active profile: typo")
 }
 
+func TestCLIEnableCursorAddsOptionalAgent(t *testing.T) {
+	home := t.TempDir()
+	initCLIHome(t, home)
+	cursorSkill := filepath.Join(home, ".cursor", "skills", "cursor-only")
+	if err := os.MkdirAll(cursorSkill, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cursorSkill, "SKILL.md"), []byte("cursor"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, err := execute(t, "", "--home", home, "enable", "cursor", "--profile", "work", "--yes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stderr != "" {
+		t.Fatalf("unexpected stderr: %s", stderr)
+	}
+	requireContains(t, stdout, "Enabled agent \"cursor\"")
+	requireContains(t, stdout, "cursor")
+	if _, err := os.Readlink(filepath.Join(home, ".cursor", "skills")); err != nil {
+		t.Fatalf("cursor skills was not linked: %v", err)
+	}
+}
+
 func TestCLIEnterCreateControlsProjectProfileCreation(t *testing.T) {
 	home := t.TempDir()
 	initCLIHome(t, home)
@@ -292,16 +318,25 @@ func TestCLIDynamicCompletionReturnsDomainValues(t *testing.T) {
 	}
 	requireContains(t, stdout, "claude")
 	requireContains(t, stdout, "codex")
+	requireContains(t, stdout, "cursor")
 	requireContains(t, stdout, "agents")
 
 	stdout, _, err = execute(t, "", "--home", home, "__complete", "init", "--enable", "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	requireContains(t, stdout, "cursor")
 	requireContains(t, stdout, "agents")
 	if strings.Contains(stdout, "claude\t") || strings.Contains(stdout, "codex\t") {
 		t.Fatalf("init --enable should only complete optional adapters, got:\n%s", stdout)
 	}
+
+	stdout, _, err = execute(t, "", "--home", home, "__complete", "enable", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireContains(t, stdout, "cursor")
+	requireContains(t, stdout, "agents")
 
 	stdout, _, err = execute(t, "", "--home", home, "__complete", "run", "")
 	if err != nil {
@@ -309,7 +344,7 @@ func TestCLIDynamicCompletionReturnsDomainValues(t *testing.T) {
 	}
 	requireContains(t, stdout, "claude")
 	requireContains(t, stdout, "codex")
-	if strings.Contains(stdout, "agents\t") {
+	if strings.Contains(stdout, "agents\t") || strings.Contains(stdout, "cursor\t") {
 		t.Fatalf("run should not complete non-runnable agents, got:\n%s", stdout)
 	}
 
@@ -335,6 +370,18 @@ func TestCLIRejectsInvalidAgents(t *testing.T) {
 		t.Fatal("expected non-runnable agent to fail")
 	}
 	requireContains(t, stderr, "unsupported runnable agent \"agents\"")
+
+	_, stderr, err = execute(t, "", "--home", home, "run", "cursor", "--profile", "work")
+	if err == nil {
+		t.Fatal("expected non-runnable cursor to fail")
+	}
+	requireContains(t, stderr, "unsupported runnable agent \"cursor\"")
+
+	_, stderr, err = execute(t, "", "--home", home, "enable", "nope", "--yes")
+	if err == nil {
+		t.Fatal("expected invalid enable agent to fail")
+	}
+	requireContains(t, stderr, "unsupported agent \"nope\"")
 }
 
 func TestCLIBackupListShowsAvailableBackups(t *testing.T) {

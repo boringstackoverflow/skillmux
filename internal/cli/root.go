@@ -19,10 +19,11 @@ func NewRootCommand() *cobra.Command {
 		Long: `Skillmux keeps coding-agent skills organized by profile.
 
 It imports existing agent skill roots, backs them up, and exposes only the
-active profile through the native folders that Claude, Codex, and direct
-.agent/.agents setups already read.`,
+active profile through the native folders that Claude, Codex, Cursor, and
+direct .agent/.agents setups already read.`,
 		Example: `  skillmux init --profile work --dry-run
   skillmux init --profile work --yes
+  skillmux enable cursor --profile work --yes
   skillmux profile create frontend
   skillmux use frontend
   skillmux current
@@ -47,6 +48,7 @@ active profile through the native folders that Claude, Codex, and direct
 	}
 
 	root.AddCommand(initCommand(makeApp))
+	root.AddCommand(enableCommand(makeApp))
 	root.AddCommand(profileCommand(makeApp))
 	root.AddCommand(useCommand(makeApp))
 	root.AddCommand(currentCommand(makeApp))
@@ -79,7 +81,8 @@ imports skills into the initial profile, and relinks managed roots to the
 active profile view. Use --dry-run first to preview the plan.`,
 		Example: `  skillmux init --profile work --dry-run
   skillmux init --profile work --yes
-  skillmux init --profile work --enable agents --yes`,
+  skillmux init --profile work --enable cursor --yes
+  skillmux init --profile work --enable cursor,agents --yes`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a, err := makeApp(cmd)
@@ -95,10 +98,38 @@ active profile view. Use --dry-run first to preview the plan.`,
 		},
 	}
 	cmd.Flags().StringVar(&profile, "profile", "default", "initial profile name")
-	cmd.Flags().StringSliceVar(&enable, "enable", nil, "extra adapters to enable, e.g. agents")
+	cmd.Flags().StringSliceVar(&enable, "enable", nil, "extra adapters to enable, e.g. cursor,agents")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show the initialization plan without changing files")
 	cmd.Flags().BoolVar(&yes, "yes", false, "accept planned changes")
 	_ = cmd.RegisterFlagCompletionFunc("enable", completeEnableAgents)
+	return cmd
+}
+
+func enableCommand(makeApp appFactory) *cobra.Command {
+	var profile string
+	var yes bool
+	cmd := &cobra.Command{
+		Use:               "enable <agent>",
+		Short:             "Enable an optional agent adapter",
+		GroupID:           "getting-started",
+		Long:              "Enable an optional agent adapter after Skillmux has already been initialized.",
+		Example:           "  skillmux enable cursor --profile work --yes\n  skillmux enable agents --profile work --yes",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: optionalAgentCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			if err := confirm(cmd, yes, "Skillmux will back up and relink the requested agent skill path."); err != nil {
+				return err
+			}
+			return a.EnableAgent(args[0], profile)
+		},
+	}
+	cmd.Flags().StringVar(&profile, "profile", "", "profile to use for the enabled agent")
+	cmd.Flags().BoolVar(&yes, "yes", false, "accept planned changes")
+	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfileFlag(makeApp))
 	return cmd
 }
 
@@ -590,7 +621,7 @@ func completeSupportedAgents(cmd *cobra.Command, args []string, toComplete strin
 }
 
 func completeEnableAgents(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return completeAgentValues([]string{app.AgentAgents}, toComplete), cobra.ShellCompDirectiveNoFileComp
+	return completeAgentValues(app.OptionalAgents(), toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 func runAgentCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -604,6 +635,7 @@ func completeAgentValues(agents []string, toComplete string) []string {
 	descriptions := map[string]string{
 		app.AgentClaude: "Claude skill root",
 		app.AgentCodex:  "Codex skill root",
+		app.AgentCursor: "Cursor skill root",
 		app.AgentAgents: "Direct .agent/.agents skill root",
 	}
 	var values []string
@@ -618,6 +650,13 @@ func completeAgentValues(agents []string, toComplete string) []string {
 		values = append(values, agent)
 	}
 	return values
+}
+
+func optionalAgentCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return completeAgentValues(app.OptionalAgents(), toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 func filterValues(values []string, toComplete string) []string {

@@ -19,6 +19,11 @@ func (a *App) Init(opts InitOptions) error {
 	if opts.Profile == "" {
 		opts.Profile = "default"
 	}
+	for _, agent := range opts.Enable {
+		if !IsOptionalAgent(agent) {
+			return fmt.Errorf("unsupported optional adapter %q; supported optional adapters: %s", agent, strings.Join(OptionalAgentOrder, ", "))
+		}
+	}
 	if opts.DryRun {
 		candidates, state, err := a.Discover()
 		if err != nil {
@@ -107,19 +112,10 @@ func (a *App) withDefaultGroups(state RootGroupsState, enable []string) RootGrou
 			})
 		}
 	}
-	if enableAgents[AgentAgents] && !stateHasAgent(state, AgentAgents) {
-		state.Groups = append(state.Groups, RootGroup{
-			ID:          AgentAgents,
-			Kind:        "skills",
-			ProfilePath: filepath.ToSlash(filepath.Join("roots", AgentAgents)),
-			Agents:      []string{AgentAgents},
-			NativePaths: []NativePath{{
-				Path:         filepath.Join(a.Home, ".agents", "skills"),
-				Agent:        AgentAgents,
-				Role:         "primary",
-				OriginalKind: "absent",
-			}},
-		})
+	for _, agent := range OptionalAgentOrder {
+		if enableAgents[agent] && !stateHasAgent(state, agent) {
+			state.Groups = append(state.Groups, a.defaultRootGroup(agent, "absent"))
+		}
 	}
 	sort.Slice(state.Groups, func(i, j int) bool { return state.Groups[i].ID < state.Groups[j].ID })
 	return state
@@ -148,10 +144,27 @@ func (a *App) defaultNativePath(agent string) string {
 		return filepath.Join(a.Home, ".claude", "skills")
 	case AgentCodex:
 		return filepath.Join(a.Home, ".codex", "skills")
+	case AgentCursor:
+		return filepath.Join(a.Home, ".cursor", "skills")
 	case AgentAgents:
 		return filepath.Join(a.Home, ".agents", "skills")
 	default:
 		return filepath.Join(a.Home, "."+agent, "skills")
+	}
+}
+
+func (a *App) defaultRootGroup(agent, originalKind string) RootGroup {
+	return RootGroup{
+		ID:          agent,
+		Kind:        "skills",
+		ProfilePath: filepath.ToSlash(filepath.Join("roots", agent)),
+		Agents:      []string{agent},
+		NativePaths: []NativePath{{
+			Path:         a.defaultNativePath(agent),
+			Agent:        agent,
+			Role:         "primary",
+			OriginalKind: originalKind,
+		}},
 	}
 }
 
@@ -189,6 +202,149 @@ func (a *App) ProfileCreate(name string) error {
 	}
 	fmt.Fprintf(a.Out, "Created profile %q\n", name)
 	return nil
+}
+
+func (a *App) EnableAgent(agent, profile string) error {
+	if agent == "" {
+		return errors.New("agent is required")
+	}
+	if !IsSupportedAgent(agent) {
+		return fmt.Errorf("unsupported agent %q; supported agents: %s", agent, strings.Join(AgentOrder, ", "))
+	}
+	lock, err := a.Lock()
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	state, err := a.requireInitialized()
+	if err != nil {
+		return err
+	}
+	if stateHasAgent(state, agent) {
+		fmt.Fprintf(a.Out, "Agent %q is already enabled\n", agent)
+		return nil
+	}
+	if profile == "" {
+		profile, err = a.singleActiveProfile()
+		if err != nil {
+			return err
+		}
+	}
+	if err := a.requireProfile(profile); err != nil {
+		return err
+	}
+
+	candidate := a.inspectDefaultCandidate(agent)
+	backupID, err := a.CreateBackup("pre-enable-"+agent, []string{candidate.Path})
+	if err != nil {
+		return err
+	}
+
+	group := a.defaultRootGroup(agent, candidate.Kind)
+	if idx := a.matchingManagedGroupIndex(state, candidate); idx >= 0 {
+		group = state.Groups[idx]
+		group.Agents = orderedAgentList(addUnique(group.Agents, agent))
+		group.NativePaths = append(group.NativePaths, NativePath{
+			Path:           candidate.Path,
+			Agent:          agent,
+			Role:           "alias",
+			OriginalKind:   candidate.Kind,
+			OriginalTarget: candidate.OriginalTarget,
+		})
+		state.Groups[idx] = group
+	} else {
+		state.Groups = append(state.Groups, group)
+	}
+	sort.Slice(state.Groups, func(i, j int) bool { return state.Groups[i].ID < state.Groups[j].ID })
+
+	profiles, err := a.ListProfiles()
+	if err != nil {
+		return err
+	}
+	for _, existing := range profiles {
+		if err := a.createProfileDirs(existing, []RootGroup{group}); err != nil {
+			return err
+		}
+	}
+	if err := a.importGroup(profile, group); err != nil {
+		return err
+	}
+	if err := a.saveRootGroups(state); err != nil {
+		return err
+	}
+	if err := a.switchGroups(profile, state, []RootGroup{group}, true); err != nil {
+		return err
+	}
+	fmt.Fprintf(a.Out, "Enabled agent %q with profile %q\n", agent, profile)
+	fmt.Fprintf(a.Out, "Backup: %s\n", backupID)
+	return a.Current()
+}
+
+func (a *App) singleActiveProfile() (string, error) {
+	active, err := a.loadActive()
+	if err != nil {
+		return "", fmt.Errorf("--profile is required when no active profile is recorded")
+	}
+	seen := map[string]bool{}
+	var profiles []string
+	for _, entry := range active.Agents {
+		if entry.Profile == "" || seen[entry.Profile] {
+			continue
+		}
+		seen[entry.Profile] = true
+		profiles = append(profiles, entry.Profile)
+	}
+	if len(profiles) == 1 {
+		return profiles[0], nil
+	}
+	sort.Strings(profiles)
+	if len(profiles) == 0 {
+		return "", fmt.Errorf("--profile is required when no active profile is recorded")
+	}
+	return "", fmt.Errorf("--profile is required because active agents use multiple profiles: %s", strings.Join(profiles, ", "))
+}
+
+func (a *App) inspectDefaultCandidate(agent string) Candidate {
+	path := a.defaultNativePath(agent)
+	for _, candidate := range a.inspectCandidates() {
+		if candidate.Agent == agent && candidate.Path == path {
+			return candidate
+		}
+	}
+	return Candidate{
+		Agent:       agent,
+		Path:        path,
+		DisplayPath: a.display(path),
+		Kind:        "absent",
+	}
+}
+
+func (a *App) matchingManagedGroupIndex(state RootGroupsState, candidate Candidate) int {
+	if candidate.Resolved == "" {
+		return -1
+	}
+	for i, group := range state.Groups {
+		for _, native := range group.NativePaths {
+			resolved, err := filepath.EvalSymlinks(native.Path)
+			if err != nil {
+				continue
+			}
+			if filepath.Clean(resolved) == filepath.Clean(candidate.Resolved) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func orderedAgentList(values []string) []string {
+	var out []string
+	for _, agent := range AgentOrder {
+		if contains(values, agent) {
+			out = append(out, agent)
+		}
+	}
+	return out
 }
 
 func (a *App) ListProfiles() ([]string, error) {
@@ -328,11 +484,35 @@ func copyWithConflictCheck(src, dst string) error {
 		if srcDigest == dstDigest {
 			return nil
 		}
+		srcInfo, err := os.Lstat(src)
+		if err != nil {
+			return err
+		}
+		dstInfo, err := os.Lstat(dst)
+		if err != nil {
+			return err
+		}
+		if srcInfo.IsDir() && dstInfo.IsDir() {
+			return mergeDirWithConflictCheck(src, dst)
+		}
 		return fmt.Errorf("destination %s already exists with different contents", dst)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 	return copyPath(src, dst)
+}
+
+func mergeDirWithConflictCheck(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := copyWithConflictCheck(filepath.Join(src, entry.Name()), filepath.Join(dst, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *App) importReserved(group RootGroup, src string) error {

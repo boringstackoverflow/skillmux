@@ -10,10 +10,12 @@ import (
 const (
 	AgentClaude = "claude"
 	AgentCodex  = "codex"
+	AgentCursor = "cursor"
 	AgentAgents = "agents"
 )
 
-var AgentOrder = []string{AgentClaude, AgentCodex, AgentAgents}
+var AgentOrder = []string{AgentClaude, AgentCodex, AgentCursor, AgentAgents}
+var OptionalAgentOrder = []string{AgentCursor, AgentAgents}
 
 func SupportedAgents() []string {
 	return append([]string(nil), AgentOrder...)
@@ -21,6 +23,10 @@ func SupportedAgents() []string {
 
 func RunnableAgents() []string {
 	return []string{AgentClaude, AgentCodex}
+}
+
+func OptionalAgents() []string {
+	return append([]string(nil), OptionalAgentOrder...)
 }
 
 func IsSupportedAgent(agent string) bool {
@@ -32,6 +38,10 @@ func IsSupportedAgent(agent string) bool {
 
 func IsRunnableAgent(agent string) bool {
 	return agent == AgentClaude || agent == AgentCodex
+}
+
+func IsOptionalAgent(agent string) bool {
+	return contains(OptionalAgentOrder, agent)
 }
 
 type App struct {

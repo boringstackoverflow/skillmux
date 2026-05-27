@@ -51,7 +51,7 @@ func scanSkills(out io.Writer, root string) error {
 		}
 		return err
 	}
-	var names []string
+	var rows []skillScanRow
 	for _, entry := range entries {
 		if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
 			continue
@@ -60,24 +60,79 @@ func scanSkills(out io.Writer, root string) error {
 		if strings.HasPrefix(name, ".") && name != ".system" {
 			continue
 		}
-		names = append(names, name)
+		found, err := scanSkillEntry(root, name, &rows, true)
+		if err != nil {
+			return err
+		}
+		if !found {
+			rows = append(rows, skillScanRow{Name: name, Status: "warning: missing SKILL.md"})
+		}
 	}
-	sort.Strings(names)
-	if len(names) == 0 {
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	if len(rows) == 0 {
 		fmt.Fprintln(out, "no skills")
 		return nil
 	}
 	table := newTable(out)
 	defer table.Flush()
-	for _, name := range names {
-		skillPath := filepath.Join(root, name)
-		status := "ok"
-		if _, err := os.Stat(filepath.Join(skillPath, "SKILL.md")); err != nil {
-			status = "warning: missing SKILL.md"
-		}
-		tableRow(table, name, status)
+	for _, row := range rows {
+		tableRow(table, row.Name, row.Status)
 	}
 	return nil
+}
+
+type skillScanRow struct {
+	Name   string
+	Status string
+}
+
+func scanSkillEntry(root, rel string, rows *[]skillScanRow, topLevel bool) (bool, error) {
+	path := filepath.Join(root, rel)
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	if !info.IsDir() {
+		return false, nil
+	}
+	if _, err := os.Stat(filepath.Join(path, "SKILL.md")); err == nil {
+		*rows = append(*rows, skillScanRow{Name: filepath.ToSlash(rel), Status: "ok"})
+		return true, nil
+	} else if !os.IsNotExist(err) {
+		return false, err
+	}
+
+	linkInfo, err := os.Lstat(path)
+	if err != nil {
+		return false, err
+	}
+	if linkInfo.Mode()&os.ModeSymlink != 0 {
+		return false, nil
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false, err
+	}
+	found := false
+	for _, entry := range entries {
+		if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		childFound, err := scanSkillEntry(root, filepath.Join(rel, name), rows, false)
+		if err != nil {
+			return false, err
+		}
+		found = found || childFound
+	}
+	if topLevel {
+		return found, nil
+	}
+	return found, nil
 }
 
 func (a *App) Doctor() error {

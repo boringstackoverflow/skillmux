@@ -33,6 +33,7 @@ Skillmux exposes the active profile through the folders agents already read:
 ```text
 ~/.claude/skills
 ~/.codex/skills
+~/.cursor/skills
 ~/.agents/skills
 ~/.agent/skills
 ```
@@ -46,6 +47,7 @@ Skillmux supports separate roots:
 ```text
 ~/.claude/skills
 ~/.codex/skills
+~/.cursor/skills
 ~/.agents/skills
 ```
 
@@ -54,10 +56,13 @@ It also supports shared-root setups:
 ```text
 ~/.claude/skills -> ~/.agents/skills
 ~/.codex/skills  -> ~/.agents/skills
+~/.cursor/skills -> ~/.agents/skills
 ~/.claude/skills -> ~/.agent/skills
 ```
 
 During initialization, Skillmux resolves symlinks and groups roots that already point to the same place. Shared layouts are preserved rather than silently split.
+
+Cursor support manages the user-level `~/.cursor/skills` root. Project-level Cursor skills such as `.cursor/skills` are intentionally left under repository control.
 
 ## Safety Principles
 
@@ -82,6 +87,7 @@ Skillmux stores profiles and state under `~/.skillmux`:
       roots/
         claude/skills/
         codex/skills/
+        cursor/skills/
         agents/skills/
         shared-claude-agents/skills/
       assets/
@@ -111,6 +117,8 @@ Common commands:
 ```bash
 skillmux init --profile work --dry-run
 skillmux init --profile work --yes
+skillmux init --profile work --enable cursor --yes
+skillmux enable cursor --profile work --yes
 skillmux profile create frontend
 skillmux profile list
 skillmux profile show work
@@ -131,7 +139,7 @@ Project-local profile switching is opt-in with `.skillmux.toml`:
 
 ```toml
 profile = "work"
-agents = ["claude", "codex", "agents"]
+agents = ["claude", "codex", "cursor", "agents"]
 ```
 
 Then run:
@@ -160,7 +168,8 @@ Completions include subcommands, flags, profiles, agents, and backup IDs.
 Implemented:
 
 - Go CLI for macOS and Linux.
-- Claude, Codex, and direct `.agent(s)` skill roots.
+- Claude, Codex, Cursor, and direct `.agent(s)` skill roots.
+- Post-init optional adapter enablement with `skillmux enable cursor`.
 - Root discovery and topology preservation.
 - Profile initialization, creation, switching, listing, showing, and scanning.
 - Manifest-backed backup, restore, repair, and uninstall.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Skillmux documentation for Claude, Codex, and coding-agent skill profiles. Learn setup, profile switching, per-project pins, backups, and shell completions.">
+  <meta name="description" content="Skillmux documentation for Claude, Codex, Cursor, and coding-agent skill profiles. Learn setup, profile switching, per-project pins, backups, and shell completions.">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#141210">
   <link rel="canonical" href="https://boringstackoverflow.github.io/skillmux/docs.html">
@@ -20,9 +20,9 @@
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Skillmux Docs — coding-agent skill profiles">
-  <meta name="twitter:description" content="Common workflows and command reference for managing Claude, Codex, and coding-agent skill profiles.">
+  <meta name="twitter:description" content="Common workflows and command reference for managing Claude, Codex, Cursor, and coding-agent skill profiles.">
   <meta name="twitter:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
-  <title>Skillmux Docs — Claude, Codex, and coding-agent skill profiles</title>
+  <title>Skillmux Docs — Claude, Codex, Cursor, and coding-agent skill profiles</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
     "@context": "https://schema.org",
     "@type": "TechArticle",
     "headline": "Skillmux documentation for coding-agent skill profiles",
-    "description": "Common workflows and command reference for managing Claude, Codex, and coding-agent skill profiles with Skillmux.",
+    "description": "Common workflows and command reference for managing Claude, Codex, Cursor, and coding-agent skill profiles with Skillmux.",
     "url": "https://boringstackoverflow.github.io/skillmux/docs.html",
     "about": "Skill profile management for coding agents",
     "author": {
@@ -345,6 +345,7 @@
         <p class="sidebar-heading">Getting started</p>
         <ul class="sidebar-links">
           <li><a href="#first-time-setup">First-time setup</a></li>
+          <li><a href="#cursor-support">Cursor support</a></li>
           <li><a href="#create-profiles">Create profiles</a></li>
           <li><a href="#switch-profiles">Switch profiles</a></li>
         </ul>
@@ -376,7 +377,7 @@
       <h1>Skillmux documentation for coding-agent skill profiles</h1>
       <p class="lead">
         Common workflows, use cases, and reference for Skillmux, a CLI profile
-        manager for Claude, Codex, and direct <code>.agent</code> skill folders.
+        manager for Claude, Codex, Cursor, and direct <code>.agent</code> skill folders.
       </p>
 
       <!-- ─── First-time setup ─── -->
@@ -399,7 +400,7 @@
         </div>
 
         <p>
-          After <code>init</code>, <strong>~/.claude/skills, ~/.codex/skills, and ~/.agents/skills</strong>
+          After <code>init</code>, <strong>~/.claude/skills, ~/.codex/skills, detected ~/.cursor/skills, and ~/.agents/skills</strong>
           point to the <code>work</code> profile. Skills installed by any agent tool
           land in that profile instead of a global folder.
         </p>
@@ -409,6 +410,31 @@
           If init produces an unexpected result, run <code>skillmux restore &lt;backup-id&gt; --yes</code>
           to get back to exactly where you started.</p>
         </div>
+      </section>
+
+      <!-- ─── Cursor support ─── -->
+      <section class="docs-section" id="cursor-support">
+        <h2>Cursor support</h2>
+        <p>
+          Skillmux manages Cursor's user-level <code>~/.cursor/skills</code> root.
+          If that folder already exists, <code>init</code> detects and imports it.
+          For a fresh setup, opt in explicitly with <code>--enable cursor</code>.
+        </p>
+
+        <div class="code-block"><pre>
+<span class="c"># initialize Cursor support on a new machine</span>
+<span class="v">$ skillmux init --profile work --enable cursor --yes</span>
+
+<span class="c"># add Cursor to an existing Skillmux install</span>
+<span class="v">$ skillmux enable cursor --profile work --yes</span></pre>
+        </div>
+
+        <p>
+          Project-local Cursor skills such as <code>.cursor/skills</code> remain
+          owned by each repository. Cursor also reads Claude, Codex, and
+          <code>.agents</code> skill roots for compatibility, so switch those agents
+          together when you want Cursor to see the same profile everywhere.
+        </p>
       </section>
 
       <!-- ─── Create profiles ─── -->
@@ -446,7 +472,7 @@
         <h2>Switch profiles</h2>
         <p>
           <code>use</code> relinks all agent skill folders to a different profile in a
-          single command. All agents — Claude, Codex, and <code>.agents</code> — update at once.
+          single command. All agents — Claude, Codex, Cursor, and <code>.agents</code> — update at once.
         </p>
 
         <div class="code-block"><pre>
@@ -494,7 +520,7 @@
         <div class="code-block"><pre>
 <span class="c"># .skillmux.toml</span>
 <span class="k">profile</span> = <span class="s">"frontend"</span>
-<span class="k">agents</span>  = [<span class="s">"claude"</span>, <span class="s">"codex"</span>]</pre>
+<span class="k">agents</span>  = [<span class="s">"claude"</span>, <span class="s">"codex"</span>, <span class="s">"cursor"</span>]</pre>
         </div>
 
         <div class="code-block"><pre>
@@ -518,12 +544,15 @@
         <h2>Agent-specific switching</h2>
         <p>
           Switch a single agent to a different profile without affecting the others.
-          Useful when you want Claude on one profile while Codex stays on another.
+          Useful when you want Claude on one profile while Codex or Cursor stays on another.
         </p>
 
         <div class="code-block"><pre>
 <span class="c"># move only codex to the work profile</span>
 <span class="v">$ skillmux use work --agent codex</span>
+
+<span class="c"># move only cursor to the research profile</span>
+<span class="v">$ skillmux use research --agent cursor</span>
 
 <span class="c"># check the current state per agent</span>
 <span class="v">$ skillmux current</span></pre>

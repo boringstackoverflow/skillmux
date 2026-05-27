@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Skillmux is a CLI profile manager for Claude, Codex, and coding-agent skills. Switch skill profiles per project while preserving native agent folders.">
+  <meta name="description" content="Skillmux is a CLI profile manager for Claude, Codex, Cursor, and coding-agent skills. Switch skill profiles per project while preserving native agent folders.">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#141210">
   <link rel="canonical" href="https://boringstackoverflow.github.io/skillmux/">
   <meta property="og:site_name" content="Skillmux">
-  <meta property="og:title" content="Skillmux — Claude, Codex, and coding-agent skill profiles">
-  <meta property="og:description" content="A CLI profile manager for Claude, Codex, and coding-agent skills. Keep agents focused by exposing only the skills needed for each project.">
+  <meta property="og:title" content="Skillmux — Claude, Codex, Cursor, and coding-agent skill profiles">
+  <meta property="og:description" content="A CLI profile manager for Claude, Codex, Cursor, and coding-agent skills. Keep agents focused by exposing only the skills needed for each project.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://boringstackoverflow.github.io/skillmux/">
   <meta property="og:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
@@ -19,10 +19,10 @@
   <meta property="og:image:alt" content="Skillmux profile manager for coding-agent skills">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Skillmux — Claude, Codex, and coding-agent skill profiles">
-  <meta name="twitter:description" content="Switch skill profiles per project for Claude, Codex, and direct .agent skill folders.">
+  <meta name="twitter:title" content="Skillmux — Claude, Codex, Cursor, and coding-agent skill profiles">
+  <meta name="twitter:description" content="Switch skill profiles per project for Claude, Codex, Cursor, and direct .agent skill folders.">
   <meta name="twitter:image" content="https://boringstackoverflow.github.io/skillmux/social-card.png">
-  <title>Skillmux — Claude, Codex, and coding-agent skill profiles</title>
+  <title>Skillmux — Claude, Codex, Cursor, and coding-agent skill profiles</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,12 +35,12 @@
     "name": "Skillmux",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS, Linux",
-    "description": "A CLI profile manager for Claude, Codex, and coding-agent skills.",
+    "description": "A CLI profile manager for Claude, Codex, Cursor, and coding-agent skills.",
     "url": "https://boringstackoverflow.github.io/skillmux/",
     "codeRepository": "https://github.com/boringstackoverflow/skillmux",
     "license": "https://github.com/boringstackoverflow/skillmux/blob/main/LICENSE",
     "programmingLanguage": "Go",
-    "softwareVersion": "0.1.0",
+    "softwareVersion": "0.1.1",
     "author": {
       "@type": "Person",
       "name": "boringstackoverflow",
@@ -79,10 +79,10 @@
     <!-- ─── Hero ─── -->
     <main>
       <section class="hero" aria-label="Introduction">
-        <span class="eyebrow">v0.1.0 &middot; MIT &middot; Go</span>
+        <span class="eyebrow">v0.1.1 &middot; MIT &middot; Go</span>
         <h1 class="headline">Skill profiles<br>for coding agents.</h1>
         <p class="subhead">
-          Skillmux manages which Claude, Codex, and <code>.agent</code> skills your
+          Skillmux manages which Claude, Codex, Cursor, and <code>.agent</code> skills your
           coding agents can see. Switch profiles between projects and your agent starts
           <strong>focused, not buried</strong> in skills it doesn&rsquo;t need.
         </p>
@@ -115,7 +115,7 @@
             <h2 class="feature-title">Profile-scoped skills</h2>
             <p class="feature-desc">
               Install every skill once. Activate only the ones that matter for the project
-              you&rsquo;re in now. <strong>Claude, Codex, and <code>.agents</code> folders</strong>
+              you&rsquo;re in now. <strong>Claude, Codex, Cursor, and <code>.agents</code> folders</strong>
               all stay in sync — one command, all agents updated.
             </p>
           </li>
@@ -124,7 +124,7 @@
             <h2 class="feature-title">Native folder compatibility</h2>
             <p class="feature-desc">
               Works with <strong><code>~/.claude/skills</code>, <code>~/.codex/skills</code>,
-              <code>~/.agents/skills</code></strong> — including existing shared symlink topologies.
+              <code>~/.cursor/skills</code>, <code>~/.agents/skills</code></strong> — including existing shared symlink topologies.
               Nothing breaks when you plug it in.
             </p>
           </li>
@@ -148,6 +148,9 @@
           <pre aria-label="Main Skillmux workflow">
 <span class="c"># first-time setup — links your agent skill folders to the work profile</span>
 <span class="v">$ skillmux init --profile work --yes</span>
+
+<span class="c"># optional — add Cursor's user-level skills root</span>
+<span class="v">$ skillmux enable cursor --profile work --yes</span>
 
 <span class="c"># create a profile for a different context</span>
 <span class="v">$ skillmux profile create research</span>

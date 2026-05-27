@@ -12,6 +12,7 @@ func (a *App) candidatePaths() []Candidate {
 	return []Candidate{
 		{Agent: AgentClaude, Path: filepath.Join(a.Home, ".claude", "skills")},
 		{Agent: AgentCodex, Path: filepath.Join(a.Home, ".codex", "skills")},
+		{Agent: AgentCursor, Path: filepath.Join(a.Home, ".cursor", "skills")},
 		{Agent: AgentAgents, Path: filepath.Join(a.Home, ".agents", "skills")},
 		{Agent: AgentAgents, Path: filepath.Join(a.Home, ".agent", "skills")},
 	}
@@ -159,6 +160,8 @@ func pathPriority(path string) int {
 		return 30
 	case strings.Contains(path, string(filepath.Separator)+".codex"+string(filepath.Separator)+"skills"):
 		return 40
+	case strings.Contains(path, string(filepath.Separator)+".cursor"+string(filepath.Separator)+"skills"):
+		return 50
 	default:
 		return 100
 	}

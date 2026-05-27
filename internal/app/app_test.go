@@ -111,8 +111,58 @@ func TestFreshInitCreatesDefaultClaudeAndCodexViews(t *testing.T) {
 	if got := a.activeProfileForAgent(active, AgentCodex); got != "work" {
 		t.Fatalf("codex profile = %q, want work", got)
 	}
+	if got := a.activeProfileForAgent(active, AgentCursor); got != "" {
+		t.Fatalf("cursor profile = %q, want empty", got)
+	}
+	assertPathMissing(t, filepath.Join(home, ".cursor", "skills"))
 	if _, err := a.LatestBackupIDByReason("pre-init"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestInitAutoDetectsExistingCursorRoot(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	cursorRoot := filepath.Join(home, ".cursor", "skills")
+	writeSkill(t, cursorRoot, "cursor-skill", "cursor")
+
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := mustGroup(t, state, "cursor")
+	if got := readlink(t, cursorRoot); got != a.currentGroupSkillsPath(cursor) {
+		t.Fatalf("cursor root = %q, want %q", got, a.currentGroupSkillsPath(cursor))
+	}
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("work", cursor), "cursor-skill", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	active, err := a.loadActive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := a.activeProfileForAgent(active, AgentCursor); got != "work" {
+		t.Fatalf("cursor profile = %q, want work", got)
+	}
+}
+
+func TestInitEnableCursorCreatesRootWhenAbsent(t *testing.T) {
+	a, home, _ := newTestApp(t)
+
+	if err := a.Init(InitOptions{Profile: "work", Enable: []string{AgentCursor}}); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := mustGroup(t, state, "cursor")
+	if got := readlink(t, filepath.Join(home, ".cursor", "skills")); got != a.currentGroupSkillsPath(cursor) {
+		t.Fatalf("cursor root = %q, want %q", got, a.currentGroupSkillsPath(cursor))
 	}
 }
 
@@ -197,6 +247,38 @@ func TestInitPreservesClaudeSymlinkToAgents(t *testing.T) {
 	}
 	if got := readlink(t, claudeRoot); got != agentsRoot {
 		t.Fatalf("claude alias target = %q, want original agents root %q", got, agentsRoot)
+	}
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("frontend", shared), "shared-skill", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInitPreservesCursorSymlinkToAgents(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	agentsRoot := filepath.Join(home, ".agents", "skills")
+	cursorRoot := filepath.Join(home, ".cursor", "skills")
+	writeSkill(t, agentsRoot, "shared-skill", "shared")
+	if err := os.MkdirAll(filepath.Dir(cursorRoot), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(agentsRoot, cursorRoot); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Init(InitOptions{Profile: "frontend"}); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := mustGroup(t, state, "shared-cursor-agents")
+	if got := readlink(t, agentsRoot); got != a.currentGroupSkillsPath(shared) {
+		t.Fatalf("agents root target = %q, want %q", got, a.currentGroupSkillsPath(shared))
+	}
+	if got := readlink(t, cursorRoot); got != agentsRoot {
+		t.Fatalf("cursor alias target = %q, want original agents root %q", got, agentsRoot)
 	}
 	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("frontend", shared), "shared-skill", "SKILL.md")); err != nil {
 		t.Fatal(err)
@@ -322,6 +404,30 @@ func TestDirectAgentRootsIdenticalSkillNamesMerge(t *testing.T) {
 	}
 }
 
+func TestNestedCategoryFoldersMergeAcrossRoots(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	agentsRoot := filepath.Join(home, ".agents", "skills")
+	agentRoot := filepath.Join(home, ".agent", "skills")
+	writeSkill(t, agentsRoot, filepath.Join("shipping", "land-it"), "land")
+	writeSkill(t, agentRoot, filepath.Join("shipping", "deploy"), "deploy")
+
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents := mustGroup(t, state, "agents")
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("work", agents), "shipping", "land-it", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("work", agents), "shipping", "deploy", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUseAgentSwitchesOnlyCodexWhenSeparateRoots(t *testing.T) {
 	a, home, _ := newTestApp(t)
 	writeSkill(t, filepath.Join(home, ".claude", "skills"), "claude-skill", "claude")
@@ -409,6 +515,109 @@ func TestProjectEnterCreateCreatesConfiguredProfile(t *testing.T) {
 	}
 	if got := a.activeProfileForAgent(active, AgentCodex); got != "project" {
 		t.Fatalf("codex active = %q, want project", got)
+	}
+}
+
+func TestProjectEnterSwitchesCursor(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	writeSkill(t, filepath.Join(home, ".cursor", "skills"), "cursor-skill", "cursor")
+	if err := a.Init(InitOptions{Profile: "default"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ProfileCreate("project"); err != nil {
+		t.Fatal(err)
+	}
+	projectDir := filepath.Join(home, "project")
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := []byte("profile = \"project\"\nagents = [\"cursor\"]\n")
+	if err := os.WriteFile(filepath.Join(projectDir, ".skillmux.toml"), config, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Enter(projectDir); err != nil {
+		t.Fatal(err)
+	}
+
+	active, err := a.loadActive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := a.activeProfileForAgent(active, AgentCursor); got != "project" {
+		t.Fatalf("cursor active = %q, want project", got)
+	}
+}
+
+func TestEnableCursorExistingInstallImportsAndSwitches(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	cursorRoot := filepath.Join(home, ".cursor", "skills")
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	writeSkill(t, cursorRoot, "cursor-only", "cursor")
+
+	if err := a.EnableAgent(AgentCursor, "work"); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := mustGroup(t, state, "cursor")
+	if got := readlink(t, cursorRoot); got != a.currentGroupSkillsPath(cursor) {
+		t.Fatalf("cursor root = %q, want %q", got, a.currentGroupSkillsPath(cursor))
+	}
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("work", cursor), "cursor-only", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.LatestBackupIDByReason("pre-enable-cursor"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnableCursorRequiresProfileWhenActiveProfilesDiffer(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ProfileCreate("backend"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Use("backend", AgentCodex); err != nil {
+		t.Fatal(err)
+	}
+
+	err := a.EnableAgent(AgentCursor, "")
+	if err == nil {
+		t.Fatal("expected missing profile to fail when active profiles differ")
+	}
+	if !strings.Contains(err.Error(), "--profile is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertPathMissing(t, filepath.Join(home, ".cursor", "skills"))
+}
+
+func TestScanFindsNestedCursorSkills(t *testing.T) {
+	a, home, out := newTestApp(t)
+	cursorRoot := filepath.Join(home, ".cursor", "skills")
+	writeSkill(t, cursorRoot, filepath.Join("shipping", "land-it"), "land")
+
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := a.Scan("work", AgentCursor); err != nil {
+		t.Fatal(err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "shipping/land-it") {
+		t.Fatalf("scan did not show nested skill:\n%s", got)
+	}
+	if strings.Contains(got, "shipping\twarning") {
+		t.Fatalf("scan should not warn for category folders with nested skills:\n%s", got)
 	}
 }
 

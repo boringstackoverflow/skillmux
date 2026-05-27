@@ -1,6 +1,6 @@
 # Skillmux
 
-A CLI profile manager for Claude, Codex, and `.agent`/`.agents` skill folders.
+A CLI profile manager for Claude, Codex, Cursor, and `.agent`/`.agents` skill folders.
 
 Skillmux is a profile manager for coding-agent skills. It keeps agent-visible skills small by exposing only the active profile through the native folders that existing agents and marketplace installers already use.
 
@@ -8,9 +8,9 @@ It is designed for developers who use many skills across different workflows and
 
 ## Features
 
-- Profile-scoped skills for Claude, Codex, and direct `.agent(s)` skill folders.
-- Compatibility with native folders such as `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills`, and `~/.agent/skills`.
-- Preservation of shared symlink setups like `~/.claude/skills -> ~/.agents/skills`.
+- Profile-scoped skills for Claude, Codex, Cursor, and direct `.agent(s)` skill folders.
+- Compatibility with native folders such as `~/.claude/skills`, `~/.codex/skills`, `~/.cursor/skills`, `~/.agents/skills`, and `~/.agent/skills`.
+- Preservation of shared symlink setups like `~/.claude/skills -> ~/.agents/skills` and `~/.cursor/skills -> ~/.agents/skills`.
 - Manifest-backed backups before managed paths are relinked.
 - `doctor`, `repair`, `restore`, and `uninstall` workflows for recovery.
 - Shell completions for commands, profiles, agents, and backup IDs.
@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/i
 Install a specific version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | SKILLMUX_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | SKILLMUX_VERSION=v0.1.1 sh
 ```
 
 Install somewhere that does not need `sudo`:
@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/i
 You can also download a prebuilt binary from GitHub Releases manually:
 
 ```bash
-curl -L https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Darwin_arm64.tar.gz -o skillmux.tar.gz
+curl -L https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.1/skillmux_Darwin_arm64.tar.gz -o skillmux.tar.gz
 tar -xzf skillmux.tar.gz
 install -m 0755 skillmux /usr/local/bin/skillmux
 ```
@@ -61,7 +61,7 @@ go install github.com/boringstackoverflow/skillmux/cmd/skillmux@latest
 For a pinned Go install:
 
 ```bash
-go install github.com/boringstackoverflow/skillmux/cmd/skillmux@v0.1.0
+go install github.com/boringstackoverflow/skillmux/cmd/skillmux@v0.1.1
 ```
 
 From a local checkout:
@@ -84,6 +84,12 @@ Initialize and import existing skills:
 
 ```bash
 skillmux init --profile work --yes
+```
+
+Enable Cursor on an existing Skillmux install:
+
+```bash
+skillmux enable cursor --profile work --yes
 ```
 
 Create and switch profiles:
@@ -139,6 +145,7 @@ Skillmux detects and manages these skill roots:
 ```text
 ~/.claude/skills
 ~/.codex/skills
+~/.cursor/skills
 ~/.agents/skills
 ~/.agent/skills
 ```
@@ -147,9 +154,12 @@ If an agent root already points at a shared direct root, for example:
 
 ```text
 ~/.claude/skills -> ~/.agents/skills
+~/.cursor/skills -> ~/.agents/skills
 ```
 
-Skillmux preserves that topology. It imports the skills once, keeps `~/.agents/skills` as the primary active profile view, and keeps `~/.claude/skills` as an alias to it.
+Skillmux preserves that topology. It imports the skills once, keeps `~/.agents/skills` as the primary active profile view, and keeps `~/.claude/skills` or `~/.cursor/skills` as aliases to it.
+
+Cursor support manages the user-level `~/.cursor/skills` root. Project-local Cursor skills such as `.cursor/skills` remain owned by each repository.
 
 ## Project-Local Profiles
 
@@ -157,7 +167,7 @@ Project-local profile switching is opt-in with `.skillmux.toml`:
 
 ```toml
 profile = "work"
-agents = ["claude", "codex", "agents"]
+agents = ["claude", "codex", "cursor", "agents"]
 ```
 
 Then run:

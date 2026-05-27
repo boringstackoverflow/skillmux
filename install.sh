@@ -12,7 +12,7 @@ usage() {
 Install Skillmux from GitHub Releases.
 
 Usage:
-  ./install.sh [--version v0.1.0] [--install-dir /usr/local/bin]
+  ./install.sh [--version v0.1.1] [--install-dir /usr/local/bin]
 
 Environment:
   SKILLMUX_VERSION       Release version to install. Defaults to latest.
@@ -20,7 +20,7 @@ Environment:
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | sh
-  SKILLMUX_VERSION=v0.1.0 sh install.sh
+  SKILLMUX_VERSION=v0.1.1 sh install.sh
   sh install.sh --install-dir "$HOME/.local/bin"
 EOF
 }
