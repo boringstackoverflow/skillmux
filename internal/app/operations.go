@@ -30,8 +30,13 @@ func (a *App) Init(opts InitOptions) error {
 			return err
 		}
 		state = a.withDefaultGroups(state, opts.Enable)
+		assets := a.DiscoverAssets()
 		a.PrintDiscovery(candidates, state)
 		fmt.Fprintln(a.Out)
+		a.PrintInitPlan(opts.Profile, state, assets, true)
+		fmt.Fprintln(a.Out)
+		backupPaths := append(a.managedNativePaths(state), assetNativePaths(assets.Assets)...)
+		fmt.Fprintf(a.Out, "Backup: would create pre-init backup for %d managed paths.\n", len(backupPaths))
 		fmt.Fprintln(a.Out, "Dry run only; no files changed.")
 		return nil
 	}
@@ -48,6 +53,8 @@ func (a *App) Init(opts InitOptions) error {
 	state = a.withDefaultGroups(state, opts.Enable)
 	assets := a.DiscoverAssets()
 	a.PrintDiscovery(candidates, state)
+	fmt.Fprintln(a.Out)
+	a.PrintInitPlan(opts.Profile, state, assets, false)
 
 	backupPaths := append(a.managedNativePaths(state), assetNativePaths(assets.Assets)...)
 	backupID, err := a.CreateBackup("pre-init", backupPaths)
@@ -80,6 +87,7 @@ func (a *App) Init(opts InitOptions) error {
 	}
 	fmt.Fprintf(a.Out, "\nInitialized Skillmux profile %q\n", opts.Profile)
 	fmt.Fprintf(a.Out, "Backup: %s\n", backupID)
+	fmt.Fprintf(a.Out, "Undo: skillmux restore %s --yes\n", backupID)
 	return nil
 }
 

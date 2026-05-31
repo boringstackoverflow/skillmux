@@ -13,6 +13,7 @@ import (
 
 func NewRootCommand() *cobra.Command {
 	var home string
+	var cloudURL string
 	root := &cobra.Command{
 		Use:   "skillmux",
 		Short: "Profile manager for coding-agent skills",
@@ -38,16 +39,27 @@ direct .agent/.agents setups already read.`,
 		&cobra.Group{ID: "profiles", Title: "Profiles"},
 		&cobra.Group{ID: "maintenance", Title: "Maintenance"},
 		&cobra.Group{ID: "agent", Title: "Agent"},
+		&cobra.Group{ID: "cloud", Title: "Experimental Cloud Sync"},
 		&cobra.Group{ID: "other", Title: "Other Commands"},
 	)
 	root.SetCompletionCommandGroupID("other")
 	root.SetHelpCommandGroupID("other")
 
 	makeApp := func(cmd *cobra.Command) (*app.App, error) {
-		return app.New(home, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		a, err := app.New(home, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		if err != nil {
+			return nil, err
+		}
+		a.CloudURL = cloudURL
+		return a, nil
 	}
 
+	root.PersistentFlags().StringVar(&cloudURL, "cloud-url", "", "Skillmux Cloud URL")
 	root.AddCommand(initCommand(makeApp))
+	root.AddCommand(loginCommand(makeApp))
+	root.AddCommand(logoutCommand(makeApp))
+	root.AddCommand(authCommand(makeApp))
+	root.AddCommand(orgCommand(makeApp))
 	root.AddCommand(enableCommand(makeApp))
 	root.AddCommand(profileCommand(makeApp))
 	root.AddCommand(useCommand(makeApp))
@@ -64,6 +76,179 @@ direct .agent/.agents setups already read.`,
 }
 
 type appFactory func(*cobra.Command) (*app.App, error)
+
+func loginCommand(makeApp appFactory) *cobra.Command {
+	var email string
+	var token string
+	cmd := &cobra.Command{
+		Use:     "login",
+		Short:   "Log in to Skillmux Cloud",
+		GroupID: "cloud",
+		Long:    "Log in to the experimental Skillmux Cloud preview for team profile sync. Use --token for local development or service-issued tokens.",
+		Example: `  skillmux login --email you@example.com
+  skillmux login --cloud-url http://localhost:8080 --token dev-token`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudLogin(email, token)
+		},
+	}
+	cmd.Flags().StringVar(&email, "email", "", "email address for magic-link login")
+	cmd.Flags().StringVar(&token, "token", "", "existing auth token for local development")
+	return cmd
+}
+
+func logoutCommand(makeApp appFactory) *cobra.Command {
+	return &cobra.Command{
+		Use:     "logout",
+		Short:   "Log out of Skillmux Cloud",
+		GroupID: "cloud",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudLogout()
+		},
+	}
+}
+
+func authCommand(makeApp appFactory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "auth",
+		Short:   "Manage Skillmux Cloud authentication",
+		GroupID: "cloud",
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "status",
+		Short: "Show cloud login status",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudAuthStatus()
+		},
+	})
+	return cmd
+}
+
+func orgCommand(makeApp appFactory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "org",
+		Short:   "Manage Skillmux Cloud organizations",
+		GroupID: "cloud",
+		Long:    "Create, list, select, and sync organizations in the experimental Skillmux Cloud preview.",
+		Example: `  skillmux org create acme
+  skillmux org invite acme --email teammate@example.com
+  skillmux org join acme --code skmi_...
+  skillmux org list
+  skillmux org current
+  skillmux org sync`,
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:               "create <name>",
+		Short:             "Create an organization",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgCreate(args[0])
+		},
+	})
+	var inviteEmail string
+	invite := &cobra.Command{
+		Use:               "invite <org>",
+		Short:             "Create an organization invite code",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgInvite(args[0], inviteEmail)
+		},
+	}
+	invite.Flags().StringVar(&inviteEmail, "email", "", "email address to associate with the invite")
+	cmd.AddCommand(invite)
+	var joinCode string
+	join := &cobra.Command{
+		Use:               "join <name>",
+		Short:             "Join an organization with an invite code",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgJoin(args[0], joinCode)
+		},
+	}
+	join.Flags().StringVar(&joinCode, "code", "", "invite code")
+	_ = join.MarkFlagRequired("code")
+	cmd.AddCommand(join)
+	cmd.AddCommand(&cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List organizations",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgList()
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "current",
+		Short: "Show current organization",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgCurrent()
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:               "use <name>",
+		Short:             "Set current organization",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgUse(args[0])
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "sync",
+		Short: "Check linked cloud profiles for updates",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudOrgSync()
+		},
+	})
+	return cmd
+}
 
 func initCommand(makeApp appFactory) *cobra.Command {
 	var profile string
@@ -228,6 +413,121 @@ func profileCommand(makeApp appFactory) *cobra.Command {
 	}
 	del.Flags().BoolVar(&force, "force", false, "delete without confirmation")
 	cmd.AddCommand(del)
+	cmd.AddCommand(profilePushCommand(makeApp))
+	cmd.AddCommand(profilePullCommand(makeApp))
+	cmd.AddCommand(profileDiffCommand(makeApp))
+	cmd.AddCommand(profileVersionsCommand(makeApp))
+	cmd.AddCommand(profileRollbackCommand(makeApp))
+	return cmd
+}
+
+func profilePushCommand(makeApp appFactory) *cobra.Command {
+	var org string
+	var message string
+	cmd := &cobra.Command{
+		Use:               "push <profile>",
+		Short:             "Push a profile to Skillmux Cloud",
+		Long:              "Package a local profile and publish it as an immutable cloud profile version.",
+		Example:           `  skillmux profile push work --org acme --message "Add backend review skills"`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: profileCompletion(makeApp),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudProfilePush(args[0], org, message)
+		},
+	}
+	cmd.Flags().StringVar(&org, "org", "", "organization to push to")
+	cmd.Flags().StringVarP(&message, "message", "m", "", "version message")
+	return cmd
+}
+
+func profilePullCommand(makeApp appFactory) *cobra.Command {
+	var version string
+	var localProfile string
+	var yes bool
+	cmd := &cobra.Command{
+		Use:               "pull <org/profile>",
+		Short:             "Pull a cloud profile into an inactive local profile",
+		Long:              "Preview or apply a cloud profile version. Pull writes only to an inactive local profile and never relinks native agent roots.",
+		Example:           "  skillmux profile pull acme/work\n  skillmux profile pull acme/work --profile work-next --yes",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudProfilePull(args[0], version, localProfile, yes)
+		},
+	}
+	cmd.Flags().StringVar(&version, "version", "", "version to pull, e.g. v12")
+	cmd.Flags().StringVar(&localProfile, "profile", "", "local profile name to write")
+	cmd.Flags().BoolVar(&yes, "yes", false, "apply the pull after showing the diff")
+	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfileFlag(makeApp))
+	return cmd
+}
+
+func profileDiffCommand(makeApp appFactory) *cobra.Command {
+	var version string
+	var localProfile string
+	cmd := &cobra.Command{
+		Use:               "diff <org/profile>",
+		Short:             "Diff a cloud profile against a local profile",
+		Example:           "  skillmux profile diff acme/work\n  skillmux profile diff acme/work --version v12 --profile work-next",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudProfileDiff(args[0], version, localProfile)
+		},
+	}
+	cmd.Flags().StringVar(&version, "version", "", "version to diff, e.g. v12")
+	cmd.Flags().StringVar(&localProfile, "profile", "", "local profile name to compare")
+	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfileFlag(makeApp))
+	return cmd
+}
+
+func profileVersionsCommand(makeApp appFactory) *cobra.Command {
+	return &cobra.Command{
+		Use:               "versions <org/profile>",
+		Short:             "List cloud profile versions",
+		Example:           "  skillmux profile versions acme/work",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudProfileVersions(args[0])
+		},
+	}
+}
+
+func profileRollbackCommand(makeApp appFactory) *cobra.Command {
+	var to string
+	cmd := &cobra.Command{
+		Use:               "rollback <org/profile>",
+		Short:             "Mark a previous cloud profile version as recommended",
+		Example:           "  skillmux profile rollback acme/work --to v12",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: noFileCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := makeApp(cmd)
+			if err != nil {
+				return err
+			}
+			return a.CloudProfileRollback(args[0], to)
+		},
+	}
+	cmd.Flags().StringVar(&to, "to", "", "version to mark as recommended")
+	_ = cmd.MarkFlagRequired("to")
 	return cmd
 }
 

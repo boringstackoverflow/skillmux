@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          test -z "$(gofmt -l .)"
+
+      - name: Check whitespace
+        run: git diff-tree --check --no-commit-id --root -r HEAD
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Race
+        run: go test -race ./...
+
+  shell:
+    name: Shell
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: ShellCheck
+        run: shellcheck install.sh scripts/*.sh

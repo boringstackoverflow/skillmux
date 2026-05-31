@@ -122,10 +122,20 @@ skillmux enable cursor --profile work --yes
 skillmux profile create frontend
 skillmux profile list
 skillmux profile show work
+skillmux profile push work --org acme --message "Initial profile"
+skillmux profile pull acme/work --profile work-next --yes
+skillmux profile diff acme/work
+skillmux profile versions acme/work
+skillmux profile rollback acme/work --to v1
 skillmux use frontend
 skillmux use research --create
 skillmux use work --agent codex
 skillmux current
+skillmux login --email you@example.com
+skillmux org create acme
+skillmux org invite acme --email teammate@example.com
+skillmux org join acme --code skmi_...
+skillmux org sync
 skillmux scan --profile work
 skillmux doctor
 skillmux repair --dry-run
@@ -134,6 +144,10 @@ skillmux backup list
 skillmux restore <backup-id> --yes
 skillmux uninstall --yes
 ```
+
+The `login`, `org`, and cloud-backed `profile push/pull/diff/versions/rollback`
+commands are an experimental preview client for the separate `skillmux-cloud`
+prototype. They are optional and are not required for local Skillmux usage.
 
 Project-local profile switching is opt-in with `.skillmux.toml`:
 
@@ -176,6 +190,7 @@ Implemented:
 - Backup listing and shell completions for profile, agent, and backup values.
 - Conservative aliases such as `switch`, `status`, `check`, `profile ls`, and `profile rm`.
 - Reserved `.system` skill preservation.
+- Experimental Skillmux Cloud preview client commands for login, orgs, profile push/pull/diff/version listing, and rollback.
 - Temp-home integration tests for supported layouts.
 
 Not yet implemented:
@@ -183,6 +198,7 @@ Not yet implemented:
 - Safe-install staging flow.
 - Registry or package-management behavior.
 - Skill dependency resolution.
+- Production Skillmux Cloud service, billing, invites, email delivery, and hosted object storage.
 - Windows support.
 - Security scanning of third-party skills.
 - True concurrent profiles for the same agent.
@@ -192,8 +208,9 @@ Not yet implemented:
 Near-term:
 
 - Improve interactive prompts and dry-run summaries.
-- Add tagged GitHub releases, prebuilt binaries, and a Homebrew tap.
+- Add CI and release guardrails.
 - Expand tests for repair and restore edge cases.
+- Harden the team profile sync prototype with invites, real magic-link email delivery, billing, and remote object storage.
 - Document real-world migration examples.
 
 Later:

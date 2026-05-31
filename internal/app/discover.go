@@ -194,3 +194,39 @@ func (a *App) PrintDiscovery(candidates []Candidate, state RootGroupsState) {
 		tableRow(table, group, c.DisplayPath, c.Kind, target)
 	}
 }
+
+func (a *App) PrintInitPlan(profile string, state RootGroupsState, assets AssetState, dryRun bool) {
+	if dryRun {
+		fmt.Fprintf(a.Out, "Planned changes for profile %q:\n", profile)
+	} else {
+		fmt.Fprintf(a.Out, "Managed links for profile %q:\n", profile)
+	}
+	fmt.Fprintln(a.Out)
+
+	table := newTable(a.Out)
+	tableRow(table, "GROUP", "NATIVE PATH", "ROLE", "AFTER")
+	for _, group := range state.Groups {
+		for _, native := range group.NativePaths {
+			tableRow(table, group.ID, a.display(native.Path), native.Role, a.displayLinkTarget(a.expectedTarget(group, native)))
+		}
+	}
+	_ = table.Flush()
+
+	if len(assets.Assets) == 0 {
+		return
+	}
+	fmt.Fprintln(a.Out)
+	assetTable := newTable(a.Out)
+	tableRow(assetTable, "ASSET", "NATIVE PATH", "AFTER")
+	for _, asset := range assets.Assets {
+		tableRow(assetTable, asset.ID, a.display(asset.NativePath), a.display(a.currentAssetPath(asset)))
+	}
+	_ = assetTable.Flush()
+}
+
+func (a *App) displayLinkTarget(target string) string {
+	if filepath.IsAbs(target) {
+		return a.display(target)
+	}
+	return target
+}

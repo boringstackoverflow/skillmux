@@ -80,6 +80,15 @@ func TestInitDryRunDoesNotMutateFilesystem(t *testing.T) {
 	if !strings.Contains(out.String(), "Dry run only") {
 		t.Fatalf("dry-run output did not explain that no files changed:\n%s", out.String())
 	}
+	for _, want := range []string{
+		"Planned changes for profile \"work\"",
+		"~/.skillmux/current/roots/codex/skills",
+		"Backup: would create pre-init backup",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out.String())
+		}
+	}
 }
 
 func TestFreshInitCreatesDefaultClaudeAndCodexViews(t *testing.T) {
@@ -546,6 +555,61 @@ func TestProjectEnterSwitchesCursor(t *testing.T) {
 	}
 	if got := a.activeProfileForAgent(active, AgentCursor); got != "project" {
 		t.Fatalf("cursor active = %q, want project", got)
+	}
+}
+
+func TestProfileSnapshotApplyRequiresInactiveProfile(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	writeSkill(t, filepath.Join(home, ".claude", "skills"), "team-review", "review")
+	snapshot, err := a.BuildProfileSnapshot("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.ApplyProfileSnapshot("work", snapshot); err == nil {
+		t.Fatal("expected applying to active profile to fail")
+	} else if !strings.Contains(err.Error(), "native agent roots are not changed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := a.ProfileCreate("incoming"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ApplyProfileSnapshot("incoming", snapshot); err != nil {
+		t.Fatal(err)
+	}
+	state, err := a.loadRootGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	claude := mustGroup(t, state, "claude")
+	if _, err := os.Stat(filepath.Join(a.groupSkillsPath("incoming", claude), "team-review", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if got := readlink(t, filepath.Join(home, ".claude", "skills")); got != a.currentGroupSkillsPath(claude) {
+		t.Fatalf("pull changed native root link: got %q, want %q", got, a.currentGroupSkillsPath(claude))
+	}
+}
+
+func TestProfileSnapshotRejectsDigestMismatch(t *testing.T) {
+	a, home, _ := newTestApp(t)
+	if err := a.Init(InitOptions{Profile: "work"}); err != nil {
+		t.Fatal(err)
+	}
+	writeSkill(t, filepath.Join(home, ".claude", "skills"), "team-review", "review")
+	snapshot, err := a.BuildProfileSnapshot("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Digest = "bad"
+
+	if err := a.ApplyProfileSnapshot("incoming", snapshot); err == nil {
+		t.Fatal("expected digest mismatch to fail")
+	} else if !strings.Contains(err.Error(), "digest mismatch") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

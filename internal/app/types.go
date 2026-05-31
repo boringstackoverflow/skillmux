@@ -47,6 +47,7 @@ func IsOptionalAgent(agent string) bool {
 type App struct {
 	Home         string
 	SkillmuxHome string
+	CloudURL     string
 	Out          io.Writer
 	Err          io.Writer
 }

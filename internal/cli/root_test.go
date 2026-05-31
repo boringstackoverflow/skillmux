@@ -2,10 +2,18 @@ package cli
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/boringstackoverflow/skillmux/internal/app"
 )
 
 func execute(t *testing.T, input string, args ...string) (string, string, error) {
@@ -39,6 +47,17 @@ func initCLIHome(t *testing.T, home string) {
 	}
 }
 
+func writeCLISkill(t *testing.T, root, name, body string) {
+	t.Helper()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCLIRootHelpIsGroupedAndActionable(t *testing.T) {
 	stdout, stderr, err := execute(t, "", "--help")
 	if err != nil {
@@ -52,9 +71,11 @@ func TestCLIRootHelpIsGroupedAndActionable(t *testing.T) {
 		"Profiles",
 		"Maintenance",
 		"Agent",
+		"Experimental Cloud Sync",
 		"Other Commands",
 		"skillmux init --profile work --dry-run",
 		"enable",
+		"login",
 		"completion",
 	} {
 		requireContains(t, stdout, want)
@@ -120,6 +141,8 @@ func TestCLIInitDryRunDoesNotPromptOrMutate(t *testing.T) {
 	if !strings.Contains(stdout, "Dry run only") {
 		t.Fatalf("expected dry-run output, got:\n%s", stdout)
 	}
+	requireContains(t, stdout, "Planned changes for profile \"work\"")
+	requireContains(t, stdout, "Backup: would create pre-init backup")
 	if _, err := os.Lstat(filepath.Join(home, ".skillmux")); !os.IsNotExist(err) {
 		t.Fatalf("dry-run created .skillmux: %v", err)
 	}
@@ -156,12 +179,208 @@ func TestCLIInitWithYesCreatesManagedRoots(t *testing.T) {
 	if !strings.Contains(stdout, "Initialized Skillmux profile \"work\"") {
 		t.Fatalf("expected init success output, got:\n%s", stdout)
 	}
+	requireContains(t, stdout, "Managed links for profile \"work\"")
+	requireContains(t, stdout, "Undo: skillmux restore")
 	if _, err := os.Readlink(filepath.Join(home, ".claude", "skills")); err != nil {
 		t.Fatalf("claude skills was not linked: %v", err)
 	}
 	if _, err := os.Readlink(filepath.Join(home, ".codex", "skills")); err != nil {
 		t.Fatalf("codex skills was not linked: %v", err)
 	}
+}
+
+func TestCLICloudLoginStoresTokenOnlyAfterSuccess(t *testing.T) {
+	home := t.TempDir()
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"boom"}`, http.StatusInternalServerError)
+	}))
+	defer failing.Close()
+
+	_, _, err := execute(t, "", "--home", home, "--cloud-url", failing.URL, "login", "--email", "dev@example.com")
+	if err == nil {
+		t.Fatal("expected failed login")
+	}
+	if _, statErr := os.Stat(filepath.Join(home, ".skillmux", "state", "cloud.toml")); !os.IsNotExist(statErr) {
+		t.Fatalf("failed login wrote cloud state: %v", statErr)
+	}
+
+	success := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/auth/magic-link" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"token": "dev-token", "message": "issued"})
+	}))
+	defer success.Close()
+
+	stdout, stderr, err := execute(t, "", "--home", home, "--cloud-url", success.URL, "login", "--email", "dev@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stderr != "" {
+		t.Fatalf("unexpected stderr: %s", stderr)
+	}
+	requireContains(t, stdout, "Logged in")
+	info, err := os.Stat(filepath.Join(home, ".skillmux", "state", "cloud.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("cloud token file mode = %v, want 0600", got)
+	}
+}
+
+func TestCLICloudOrgInviteJoinFlow(t *testing.T) {
+	home := t.TempDir()
+	var inviteCode string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer dev-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid bearer token"})
+			return
+		}
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/orgs/acme/invites":
+			inviteCode = "skmi_test"
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]string{"code": inviteCode, "email": "team@example.com"})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/orgs/acme/join":
+			var req struct {
+				Code string `json:"code"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatalf("decode join: %v", err)
+			}
+			if req.Code != inviteCode {
+				t.Fatalf("join code = %q, want %q", req.Code, inviteCode)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"org": map[string]string{"name": "acme"}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	if stdout, stderr, err := execute(t, "", "--home", home, "--cloud-url", server.URL, "login", "--token", "dev-token"); err != nil {
+		t.Fatalf("login failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	stdout, stderr, err := execute(t, "", "--home", home, "--cloud-url", server.URL, "org", "invite", "acme", "--email", "team@example.com")
+	if err != nil {
+		t.Fatalf("invite failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	requireContains(t, stdout, "Invite code for acme: skmi_test")
+
+	stdout, stderr, err = execute(t, "", "--home", home, "--cloud-url", server.URL, "org", "join", "acme", "--code", "skmi_test")
+	if err != nil {
+		t.Fatalf("join failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	requireContains(t, stdout, "Joined org \"acme\"")
+	requireContains(t, stdout, "Current org: acme")
+}
+
+func TestCLICloudProfilePushPullFlowKeepsNativeRootsStable(t *testing.T) {
+	home := t.TempDir()
+	initCLIHome(t, home)
+	writeCLISkill(t, filepath.Join(home, ".claude", "skills"), "local-review", "local")
+
+	var snapshot app.ProfileSnapshot
+	var versionDigest string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer dev-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid bearer token"})
+			return
+		}
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/orgs/acme/profiles/work/versions":
+			var req struct {
+				Message  string              `json:"message"`
+				Snapshot app.ProfileSnapshot `json:"snapshot"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatalf("decode push: %v", err)
+			}
+			snapshot = req.Snapshot
+			versionDigest = snapshot.Digest
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"version": map[string]any{
+				"version": "v1", "digest": snapshot.Digest, "files": len(snapshot.Files), "created_at": "2026-05-30T00:00:00Z", "recommended": true,
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/orgs/acme/profiles/work/versions":
+			_ = json.NewEncoder(w).Encode(map[string]any{"versions": []map[string]any{{
+				"version": "v1", "digest": versionDigest, "files": len(snapshot.Files), "created_at": "2026-05-30T00:00:00Z", "recommended": true,
+			}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/orgs/acme/profiles/work/versions/v1/archive":
+			_ = json.NewEncoder(w).Encode(snapshot)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	_, stderr, err := execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "push", "work", "--org", "acme")
+	if err == nil {
+		t.Fatal("expected push without login to fail")
+	}
+	requireContains(t, stderr, "not logged in")
+
+	if stdout, stderr, err := execute(t, "", "--home", home, "--cloud-url", server.URL, "login", "--token", "dev-token"); err != nil {
+		t.Fatalf("login failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	stdout, stderr, err := execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "push", "work", "--org", "acme", "--message", "Initial")
+	if err != nil {
+		t.Fatalf("push failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	requireContains(t, stdout, "Pushed acme/work v1")
+
+	addSnapshotFile(&snapshot, "roots/claude/skills/remote-only/SKILL.md", "remote")
+	versionDigest = ""
+
+	stdout, stderr, err = execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "pull", "acme/work", "--profile", "incoming")
+	if err != nil {
+		t.Fatalf("pull preview failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	requireContains(t, stdout, "Dry run only")
+	if _, err := os.Stat(filepath.Join(home, ".skillmux", "profiles", "incoming")); !os.IsNotExist(err) {
+		t.Fatalf("preview created incoming profile: %v", err)
+	}
+
+	_, stderr, err = execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "pull", "acme/work", "--profile", "work", "--yes")
+	if err == nil {
+		t.Fatal("expected pull into active profile to fail")
+	}
+	requireContains(t, stderr, "native agent roots are not changed")
+
+	stdout, stderr, err = execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "pull", "acme/work", "--profile", "incoming", "--yes")
+	if err != nil {
+		t.Fatalf("pull apply failed: %v\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+	requireContains(t, stdout, "Activate it with: skillmux use incoming")
+	if _, err := os.Stat(filepath.Join(home, ".skillmux", "profiles", "incoming", "roots", "claude", "skills", "remote-only", "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "remote-only", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatalf("pull changed active native root: %v", err)
+	}
+
+	versionDigest = "bad"
+	_, stderr, err = execute(t, "", "--home", home, "--cloud-url", server.URL, "profile", "diff", "acme/work", "--profile", "incoming")
+	if err == nil {
+		t.Fatal("expected digest mismatch")
+	}
+	requireContains(t, stderr, "archive digest mismatch")
+}
+
+func addSnapshotFile(snapshot *app.ProfileSnapshot, path, body string) {
+	sum := sha256.Sum256([]byte(body))
+	snapshot.Files = append(snapshot.Files, app.ProfileSnapshotFile{
+		Path:    path,
+		Type:    "file",
+		Mode:    0o644,
+		Content: base64.StdEncoding.EncodeToString([]byte(body)),
+		SHA256:  hex.EncodeToString(sum[:]),
+	})
+	snapshot.Digest = ""
 }
 
 func TestCLIAliasesRouteToCanonicalCommands(t *testing.T) {

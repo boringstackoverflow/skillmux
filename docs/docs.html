@@ -386,7 +386,7 @@
         <p>
           Run <code>init</code> once per machine. It discovers your agent skill folders,
           backs them up, and relinks them through the active profile. Use <code>--dry-run</code>
-          to preview what will change before committing.
+          to preview the managed link targets and backup plan before committing.
         </p>
 
         <h3>Preview first</h3>
@@ -402,7 +402,8 @@
         <p>
           After <code>init</code>, <strong>~/.claude/skills, ~/.codex/skills, detected ~/.cursor/skills, and ~/.agents/skills</strong>
           point to the <code>work</code> profile. Skills installed by any agent tool
-          land in that profile instead of a global folder.
+          land in that profile instead of a global folder. The success output includes
+          the backup ID and an exact <code>skillmux restore ... --yes</code> undo command.
         </p>
 
         <div class="callout tip">

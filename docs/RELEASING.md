@@ -1,33 +1,93 @@
 # Releasing
 
-This document describes the recommended public install and release flow for Skillmux.
+This document describes the public release flow for Skillmux. The current
+published version is `v0.1.1`.
 
 ## Install Channels
 
-Skillmux should support four install paths:
+Skillmux supports these install paths:
 
-1. Homebrew through a project-owned tap for macOS and Linux users.
-2. `install.sh`, backed by GitHub Release binaries, for users without Go or Homebrew.
+1. Homebrew through `boringstackoverflow/homebrew-tap`.
+2. `install.sh`, backed by GitHub Release binaries.
 3. Direct GitHub Release binary downloads.
-4. `go install` for Go users and early adopters.
+4. `go install` for Go users.
 5. Source builds for contributors.
 
-The default user-facing path should not require users to have Go installed.
+Homebrew is the default recommendation because users do not need Go installed.
 
-## Homebrew
+## Standard Release Flow
 
-Homebrew should be the simplest install path for macOS and Linux users:
+Start from a clean `main` branch:
 
 ```bash
-brew install boringstackoverflow/tap/skillmux
+git status --short --branch
+GOCACHE=/private/tmp/skillmux-gocache go test ./...
+GOCACHE=/private/tmp/skillmux-gocache go vet ./...
+GOCACHE=/private/tmp/skillmux-gocache go test -race ./...
+git diff --check
 ```
 
-Do not start with `homebrew/core`. A new niche CLI should first publish its own tap.
+Move the changelog entry from `Unreleased` to the new version and update any
+user-facing version references in the README, install examples, and docs site.
 
-Recommended tap:
+Build, tag, push, and publish the GitHub Release:
+
+```bash
+scripts/release.sh v0.1.2 --push-tag --publish
+```
+
+The release script:
+
+- Runs `go test ./...`, `go vet ./...`, and `go test -race ./...`.
+- Requires a clean working tree.
+- Builds macOS and Linux archives into `dist/`.
+- Writes `dist/checksums.txt`.
+- Creates an annotated git tag.
+- Pushes the tag when `--push-tag` is set.
+- Creates the GitHub Release and uploads artifacts when `--publish` is set.
+
+If `gh release create` selects the wrong authenticated host, rerun the publish
+step explicitly:
+
+```bash
+GH_HOST=github.com gh release create v0.1.2 \
+  dist/skillmux_Darwin_arm64.tar.gz \
+  dist/skillmux_Darwin_x86_64.tar.gz \
+  dist/skillmux_Linux_arm64.tar.gz \
+  dist/skillmux_Linux_x86_64.tar.gz \
+  dist/checksums.txt \
+  --repo boringstackoverflow/skillmux \
+  --title "Skillmux v0.1.2" \
+  --notes "See CHANGELOG.md for release notes."
+```
+
+## GitHub Release Artifacts
+
+Each release must include:
+
+- `skillmux_Darwin_arm64.tar.gz`
+- `skillmux_Darwin_x86_64.tar.gz`
+- `skillmux_Linux_arm64.tar.gz`
+- `skillmux_Linux_x86_64.tar.gz`
+- `checksums.txt`
+
+Each archive must contain a single `skillmux` binary at the archive root. The
+install script and Homebrew formula both depend on these names.
+
+Verify the published release:
+
+```bash
+GH_HOST=github.com gh release view v0.1.2 \
+  --repo boringstackoverflow/skillmux \
+  --json tagName,url,assets,isDraft,isPrerelease
+```
+
+## Homebrew Tap
+
+The tap repo is:
 
 ```text
-github.com/boringstackoverflow/homebrew-tap
+https://github.com/boringstackoverflow/homebrew-tap
 ```
 
 Formula path:
@@ -36,91 +96,36 @@ Formula path:
 Formula/skillmux.rb
 ```
 
-Users can also install after tapping explicitly:
+Users install with:
 
 ```bash
-brew tap boringstackoverflow/tap
-brew install skillmux
+brew install boringstackoverflow/tap/skillmux
 ```
 
-For the first public version, prefer a formula that installs release binaries so users do not need Go installed locally:
+After every Skillmux release, update the tap formula:
 
-```ruby
-class Skillmux < Formula
-  desc "Profile manager for coding-agent skills"
-  homepage "https://github.com/boringstackoverflow/skillmux"
-  version "0.1.0"
-  license "MIT"
+1. Change `version`.
+2. Update all four release URLs.
+3. Update all four SHA-256 values from `dist/checksums.txt`.
+4. Commit and push the tap.
 
-  on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Darwin_arm64.tar.gz"
-      sha256 "<darwin-arm64-sha256>"
-    else
-      url "https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Darwin_x86_64.tar.gz"
-      sha256 "<darwin-amd64-sha256>"
-    end
-  end
-
-  on_linux do
-    if Hardware::CPU.arm?
-      url "https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Linux_arm64.tar.gz"
-      sha256 "<linux-arm64-sha256>"
-    else
-      url "https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Linux_x86_64.tar.gz"
-      sha256 "<linux-amd64-sha256>"
-    end
-  end
-
-  def install
-    bin.install "skillmux"
-    generate_completions_from_executable(bin/"skillmux", "completion")
-  end
-
-  test do
-    system "#{bin}/skillmux", "--help"
-  end
-end
-```
-
-This depends on publishing release archives with a single `skillmux` binary inside each archive.
-
-## GitHub Release Binaries
-
-GitHub Releases should be the canonical no-Go fallback. Each release should include:
-
-- A semantic version tag such as `v0.1.0`.
-- Release notes.
-- Checksums.
-- Prebuilt archives for:
-  - `skillmux_Darwin_arm64.tar.gz`
-  - `skillmux_Darwin_x86_64.tar.gz`
-  - `skillmux_Linux_arm64.tar.gz`
-  - `skillmux_Linux_x86_64.tar.gz`
-
-Example manual install for macOS Apple Silicon:
+Use this verification flow from the tap checkout:
 
 ```bash
-curl -L https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Darwin_arm64.tar.gz -o skillmux.tar.gz
-tar -xzf skillmux.tar.gz
-install -m 0755 skillmux /usr/local/bin/skillmux
+brew uninstall skillmux || true
+brew install boringstackoverflow/tap/skillmux
 skillmux --help
+brew test boringstackoverflow/tap/skillmux
+brew audit --strict boringstackoverflow/tap/skillmux
 ```
 
-Example manual install for Linux x86_64:
-
-```bash
-curl -L https://github.com/boringstackoverflow/skillmux/releases/download/v0.1.0/skillmux_Linux_x86_64.tar.gz -o skillmux.tar.gz
-tar -xzf skillmux.tar.gz
-sudo install -m 0755 skillmux /usr/local/bin/skillmux
-skillmux --help
-```
-
-A future `install.sh` can wrap this OS/architecture detection, but direct binary archives should exist first.
+For `v0.1.1`, the formula was published in
+`boringstackoverflow/homebrew-tap` at commit `a9eadfa`.
 
 ## Install Script
 
-The repository includes `install.sh`, which downloads the correct release archive for the user's OS and CPU.
+The repository includes `install.sh`, which downloads the correct archive for
+the user's OS and CPU.
 
 Default install:
 
@@ -131,7 +136,7 @@ curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/i
 Pinned install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | SKILLMUX_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | SKILLMUX_VERSION=v0.1.1 sh
 ```
 
 Install without `sudo`:
@@ -140,104 +145,29 @@ Install without `sudo`:
 curl -fsSL https://raw.githubusercontent.com/boringstackoverflow/skillmux/main/install.sh | SKILLMUX_INSTALL_DIR="$HOME/.local/bin" sh
 ```
 
-The script expects release archives named:
+The script downloads `checksums.txt` from the same release and verifies SHA-256
+checksums when `shasum` or `sha256sum` is available.
 
-```text
-skillmux_Darwin_arm64.tar.gz
-skillmux_Darwin_x86_64.tar.gz
-skillmux_Linux_arm64.tar.gz
-skillmux_Linux_x86_64.tar.gz
+## Go Install
+
+Stable install:
+
+```bash
+go install github.com/boringstackoverflow/skillmux/cmd/skillmux@v0.1.1
 ```
 
-Each archive must contain a `skillmux` binary at the archive root.
-
-The script also tries to download `checksums.txt` from the same release and verifies SHA-256 checksums when `shasum` or `sha256sum` is available.
-
-The install script only installs the binary. Users can enable shell completion with
-`skillmux completion <shell> --help`; Homebrew formulas should install generated
-completion files automatically.
-
-## Source Install
-
-After the repository is public, Go users can install from the default branch with:
+Latest default branch:
 
 ```bash
 go install github.com/boringstackoverflow/skillmux/cmd/skillmux@latest
 ```
 
-For stable usage, prefer a tagged version:
-
-```bash
-go install github.com/boringstackoverflow/skillmux/cmd/skillmux@v0.1.0
-```
-
-This is the simplest first public install path because it only requires the repo to be public and the module path to match `go.mod`.
-
-Recommended first-release flow:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Then create a GitHub Release for the tag and attach binaries/checksums. This can start as a manual process; automate it later with GitHub Actions or GoReleaser.
-
-The repository includes `scripts/release.sh` for the manual release flow:
-
-```bash
-scripts/release.sh v0.1.0 --dry-run
-scripts/release.sh v0.1.0
-scripts/release.sh v0.1.0 --push-tag --publish
-```
-
-By default, the script:
-
-- Runs `go test ./...`, `go vet ./...`, and `go test -race ./...`.
-- Requires a clean working tree.
-- Builds macOS and Linux archives into `dist/`.
-- Writes `dist/checksums.txt`.
-- Creates an annotated local Git tag.
-
-With `--push-tag`, it pushes the tag to `origin`. With `--publish`, it also uses the GitHub CLI to create the GitHub Release and upload artifacts.
-
-## Recommended Order
-
-1. Publish this repository publicly.
-2. Run `scripts/release.sh v0.1.0 --dry-run`.
-3. Run `scripts/release.sh v0.1.0 --push-tag --publish`.
-4. Verify install script and direct binary install.
-5. Verify Go install:
-
-```bash
-go install github.com/boringstackoverflow/skillmux/cmd/skillmux@v0.1.0
-```
-
-6. Create `boringstackoverflow/homebrew-tap`.
-7. Add `Formula/skillmux.rb`.
-8. Verify:
-
-```bash
-brew install boringstackoverflow/tap/skillmux
-skillmux --help
-```
-
-9. Add release automation once the manual flow is proven.
-
 ## Pre-Release Checklist
 
-Run:
-
-```bash
-go test ./...
-go vet ./...
-go test -race ./...
-go build ./cmd/skillmux
-scripts/release.sh v0.1.0 --dry-run
-```
-
-Review:
-
-- README install instructions are accurate.
+- CI is green on `main`.
 - `CHANGELOG.md` has the release entry.
+- README install instructions and version examples are accurate.
 - `go.mod` module path matches the public GitHub repo.
-- No local `.codex/`, `.skillmux/`, or generated binaries are staged.
+- No local `.codex/`, `.skillmux/`, `dist/`, or generated binaries are staged.
+- The GitHub Release has all five artifacts.
+- The Homebrew tap formula has been updated and verified.

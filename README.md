@@ -1,5 +1,9 @@
 # Skillmux
 
+[![CI](https://github.com/boringstackoverflow/skillmux/actions/workflows/ci.yml/badge.svg)](https://github.com/boringstackoverflow/skillmux/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/boringstackoverflow/skillmux)](https://github.com/boringstackoverflow/skillmux/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A CLI profile manager for Claude, Codex, Cursor, and `.agent`/`.agents` skill folders.
 
 Skillmux is a profile manager for coding-agent skills. It keeps agent-visible skills small by exposing only the active profile through the native folders that existing agents and marketplace installers already use.
@@ -18,7 +22,7 @@ It is designed for developers who use many skills across different workflows and
 
 ## Install
 
-For most users, install with Homebrew after the first tagged release:
+For most users, install with Homebrew:
 
 ```bash
 brew install boringstackoverflow/tap/skillmux
@@ -114,6 +118,19 @@ skillmux scan --profile frontend
 skillmux doctor
 skillmux repair --dry-run
 ```
+
+Experimental cloud sync preview:
+
+```bash
+skillmux --cloud-url http://localhost:8080 login --email you@example.com
+skillmux --cloud-url http://localhost:8080 org create acme
+skillmux --cloud-url http://localhost:8080 org invite acme --email teammate@example.com
+skillmux --cloud-url http://localhost:8080 org join acme --code skmi_...
+skillmux --cloud-url http://localhost:8080 profile push work --org acme --message "Initial profile"
+skillmux --cloud-url http://localhost:8080 profile pull acme/work --profile work-next --yes
+```
+
+Cloud sync is a development preview for the separate `skillmux-cloud` prototype and is not required for local Skillmux usage. Cloud pulls write only to inactive local profiles. Use `skillmux use <profile>` when you are ready to expose the pulled profile through native agent roots.
 
 ## Shell Completion
 
